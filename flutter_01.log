@@ -1,0 +1,79 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter run -d web-server
+
+## exception
+
+PathAccessException: PathAccessException: Deletion failed, path = 'C:\Users\Simone\AppData\Local\Temp\flutter_tools.f1e9e58f\flutter_tool.b6d60123' (OS Error: Impossibile accedere al file. Il file è utilizzato da un altro processo, errno = 32)
+
+```
+#0      _Directory._deleteSync (dart:io/directory_impl.dart:216:7)
+#1      FileSystemEntity.deleteSync (dart:io/file_system_entity.dart:425:7)
+#2      ForwardingFileSystemEntity.deleteSync (package:file/src/forwarding/forwarding_file_system_entity.dart:70:16)
+#3      ErrorHandlingDirectory.deleteSync.<anonymous closure> (package:flutter_tools/src/base/error_handling_io.dart:451:22)
+#4      _runSync (package:flutter_tools/src/base/error_handling_io.dart:552:14)
+#5      ErrorHandlingDirectory.deleteSync (package:flutter_tools/src/base/error_handling_io.dart:450:12)
+#6      ResidentRunner.preExit (package:flutter_tools/src/resident_runner.dart:1435:25)
+#7      ResidentRunner.exit (package:flutter_tools/src/resident_runner.dart:1278:11)
+<asynchronous suspension>
+#8      TerminalHandler._commonTerminalInputHandler (package:flutter_tools/src/resident_runner.dart:1830:9)
+<asynchronous suspension>
+#9      TerminalHandler.processTerminalInput (package:flutter_tools/src/resident_runner.dart:1906:7)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[32m[✓][39m Flutter (Channel stable, 3.41.9, on Microsoft Windows [Versione 10.0.26200.8457], locale it-IT) [445ms]
+    [32m•[39m Flutter version 3.41.9 on channel stable at C:\Users\Simone\OneDrive\Desktop\flutter
+    [32m•[39m Upstream repository https://github.com/flutter/flutter.git
+    [32m•[39m Framework revision 00b0c91f06 (3 weeks ago), 2026-04-29 10:03:19 -0700
+    [32m•[39m Engine revision 42d3d75a56
+    [32m•[39m Dart version 3.11.5
+    [32m•[39m DevTools version 2.54.2
+    [32m•[39m Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations,
+      enable-native-assets, omit-legacy-version-file, enable-lldb-debugging, enable-uiscene-migration
+
+[32m[✓][39m Windows Version (11 Pro 64-bit, 25H2, 2009) [1.942ms]
+
+[33m[!][39m Android toolchain - develop for Android devices (Android SDK version 36.1.0) [971ms]
+    [32m•[39m Android SDK at C:\Users\Simone\AppData\Local\Android\sdk
+    [32m•[39m Emulator version 36.5.11.0 (build_id 15261927) (CL:N/A)
+    [31m✗[39m cmdline-tools component is missing.
+      Try installing or updating Android Studio.
+      Alternatively, download the tools from https://developer.android.com/studio#command-line-tools-only and make sure to set the ANDROID_HOME environment
+      variable.
+      See https://developer.android.com/studio/command-line for more details.
+    [31m✗[39m Android license status unknown.
+      Run `flutter doctor --android-licenses` to accept the SDK licenses.
+      See https://flutter.dev/to/windows-android-setup for more details.
+
+[32m[✓][39m Chrome - develop for the web [249ms]
+    [32m•[39m Chrome at C:\Program Files\Google\Chrome\Application\chrome.exe
+
+[33m[!][39m Visual Studio - develop Windows apps (Visual Studio Community 2026 Insiders [11723.189]) [249ms]
+    [32m•[39m Visual Studio at C:\Program Files\Microsoft Visual Studio\18\Insiders
+    [32m•[39m Visual Studio Community 2026 version 18.6.11723.189
+    [32m•[39m The current Visual Studio installation is a pre-release version. It may not be supported by Flutter yet.
+    [31m✗[39m Visual Studio is missing necessary components. Please re-run the Visual Studio installer for the "Desktop development with C++" workload, and include
+      these components:
+        MSVC v142 - VS 2019 C++ x64/x86 build tools
+         - If there are multiple build tool versions available, install the latest
+        C++ CMake tools for Windows
+        Windows 10 SDK
+
+[32m[✓][39m Connected device (4 available) [312ms]
+    [32m•[39m Windows (desktop) • windows    • windows-x64    • Microsoft Windows [Versione 10.0.26200.8457]
+    [32m•[39m Web Server (web)  • web-server • web-javascript • Flutter Tools
+    [32m•[39m Chrome (web)      • chrome     • web-javascript • Google Chrome 148.0.7778.179
+    [32m•[39m Edge (web)        • edge       • web-javascript • Microsoft Edge 148.0.3967.70
+
+[32m[✓][39m Network resources [834ms]
+    [32m•[39m All expected network resources are available.
+
+[33m![39m Doctor found issues in 2 categories.
+```
