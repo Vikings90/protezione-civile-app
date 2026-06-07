@@ -1,3 +1,0 @@
-[build]
-  command = "curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.19.0-stable.tar.xz -o flutter.tar.xz && tar xf flutter.tar.xz && export PATH=\"$PWD/flutter/bin:$PATH\" && flutter build web"
-  publish = "build/web"

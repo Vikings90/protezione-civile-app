@@ -1389,8 +1389,8 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogNuovoIntervento() {
-    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": [], "coordinateGPS": ""};
-    String loc = "", tipo = "Incendio", coordinate = "";
+    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": []};
+    String loc = "", tipo = "Incendio";
     List<String> mezziSel = [];
     List<String> volSel = [];
     var mezziDisp = mezzo.where((m) => !m['guasto'] && m['stato'] == "Disponibile").toList();
@@ -1416,23 +1416,6 @@ class _IoSonoVState extends State<IoSonoV> {
                 const Text("Volontari:"),
                 Wrap(children: volDisp.map((v) => FilterChip(label: Text(v['nome']), selected: volSel.contains(v['nome']), onSelected: (s) => setD(() => s ? volSel.add(v['nome']) : volSel.remove(v['nome'])))).toList()),
                 TextField(onChanged: (v) => loc = v, decoration: const InputDecoration(labelText: "Località")),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: TextEditingController(text: coordinate)..selection = TextSelection.collapsed(offset: coordinate.length),
-                        onChanged: (v) => coordinate = v,
-                        decoration: const InputDecoration(labelText: "Coordinate GPS"),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.location_on),
-                      onPressed: () {
-                        _snack("GPS non disponibile su web. Inserisci manualmente le coordinate.");
-                      },
-                    ),
-                  ],
-                ),
                 TextButton.icon(onPressed: () => _scattaFoto(nuovo, setD), icon: const Icon(Icons.camera_alt), label: const Text("FOTO")),
               ],
             ),
@@ -1445,7 +1428,6 @@ class _IoSonoVState extends State<IoSonoV> {
                   nuovo['inizio'] = "${DateTime.now().hour}:${DateTime.now().minute}";
                   nuovo['mezzi'] = mezziSel;
                   nuovo['volontari_impegnati'] = volSel;
-                  nuovo['coordinateGPS'] = coordinate;
                   for (var m in mezziSel) mezzo.firstWhere((e) => e['nome'] == m)['stato'] = "In Intervento";
                   for (var v in volSel) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "In Intervento";
                   interventi.insert(0, nuovo);
@@ -1620,9 +1602,6 @@ class _IoSonoVState extends State<IoSonoV> {
         reportContenuto += "Orario Fine: ${intv['fine'] ?? 'Ancora Operativo'}\n";
         reportContenuto += "Mezzi: ${intv['mezzi'].isEmpty ? 'Nessuno' : intv['mezzi'].join(', ')}\n";
         reportContenuto += "Volontari: ${intv['volontari_impegnati'].isEmpty ? 'Nessuno' : intv['volontari_impegnati'].join(', ')}\n";
-        if (intv['coordinateGPS'] != null && intv['coordinateGPS'].toString().isNotEmpty) {
-          reportContenuto += "Coordinate GPS: ${intv['coordinateGPS']}\n";
-        }
       }
       reportContenuto += "----------------------------------------\n\n";
     }
