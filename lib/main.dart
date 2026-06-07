@@ -25,11 +25,15 @@ class _IoSonoVState extends State<IoSonoV> {
   bool _inRegistrazioneVolontario = false;
   bool _isMasterUser = false;
   bool _isVolontarioUser = false;
+  bool _mostraLogin = false;
+  bool _mostraSchermataRecuperoPassword = false;
   String? _sessionOrgId;
   String _sessionPermessi = 'pieno_accesso';
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
+  final TextEditingController _recuperoEmailController = TextEditingController();
+  final TextEditingController _recuperoMasterController = TextEditingController();
 
   final List<Map<String, dynamic>> organizzazioni = [];
   List<Map<String, dynamic>> volontari = [];
@@ -64,6 +68,8 @@ class _IoSonoVState extends State<IoSonoV> {
   void dispose() {
     _emailController.dispose();
     _passController.dispose();
+    _recuperoEmailController.dispose();
+    _recuperoMasterController.dispose();
     super.dispose();
   }
 
@@ -206,6 +212,8 @@ class _IoSonoVState extends State<IoSonoV> {
     }
     if (_inRegistrazioneVolontario) return _buildRegistrazioneVolontario();
     if (_inRegistrazioneAssociazione) return _buildRegistrazioneAssociazione();
+    if (_mostraSchermataRecuperoPassword) return _buildRecuperoPassword();
+    if (_mostraLogin) return _buildLogin();
     if (!_isAuthenticated) return _buildSchermataScelta();
     return _buildDashboard();
   }
@@ -217,7 +225,10 @@ class _IoSonoVState extends State<IoSonoV> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield_rounded, size: 100, color: pcYellow),
+            GestureDetector(
+              onTap: () => setState(() => _mostraLogin = true),
+              child: Image.asset('assets/images/io sono v.png', width: 150, height: 150),
+            ),
             const SizedBox(height: 40),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: pcYellow, foregroundColor: pcBlue, fixedSize: const Size(280, 50)),
@@ -233,7 +244,7 @@ class _IoSonoVState extends State<IoSonoV> {
             const Padding(
               padding: EdgeInsets.only(top: 16, left: 32, right: 32),
               child: Text(
-                "Dopo la creazione dell'associazione, il master potrà invitare i volontari. Solo chi è invitato potrà registrarsi.",
+                "Clicca sul logo per accedere. Dopo la creazione dell'associazione, il master potrà invitare i volontari. Solo chi è invitato potrà registrarsi.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
@@ -242,6 +253,147 @@ class _IoSonoVState extends State<IoSonoV> {
         ),
       ),
     );
+  }
+
+  Widget _buildLogin() {
+    return Scaffold(
+      backgroundColor: pcBlue,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text("ACCESSO",
+                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _emailController,
+                decoration: const InputDecoration(filled: true, fillColor: Colors.white, labelText: "Email"),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _passController,
+                obscureText: true,
+                decoration: const InputDecoration(filled: true, fillColor: Colors.white, labelText: "Password"),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _operazioneInCorso
+                    ? null
+                    : () async {
+                        final email = _normEmail(_emailController.text);
+                        final pass = _passController.text;
+
+                        if (email.isEmpty || pass.isEmpty) {
+                          _snack("Compila tutti i campi.");
+                          return;
+                        }
+
+                        await _tentaLogin();
+                      },
+                child: const Text("ACCEDI"),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => setState(() => _mostraSchermataRecuperoPassword = true),
+                child: const Text("Password dimenticata?", style: TextStyle(color: Colors.white70)),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _mostraLogin = false),
+                child: const Text("Indietro", style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecuperoPassword() {
+    return Scaffold(
+      backgroundColor: pcBlue,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text("RECUPERO PASSWORD",
+                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _recuperoEmailController,
+                decoration: const InputDecoration(filled: true, fillColor: Colors.white, labelText: "Email"),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _recuperoMasterController,
+                obscureText: true,
+                decoration: const InputDecoration(filled: true, fillColor: Colors.white, labelText: "Codice Master"),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _operazioneInCorso
+                    ? null
+                    : () async {
+                        final email = _normEmail(_recuperoEmailController.text);
+                        final master = _recuperoMasterController.text;
+
+                        if (email.isEmpty || master.isEmpty) {
+                          _snack("Compila tutti i campi.");
+                          return;
+                        }
+
+                        await _recuperaPassword(email, master);
+                      },
+                child: const Text("RECUPERA"),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => setState(() => _mostraSchermataRecuperoPassword = false),
+                child: const Text("Indietro", style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _recuperaPassword(String email, String masterCode) async {
+    // Implementazione del recupero password con codice master
+    if (_usaCloud) {
+      await _esegui(() async {
+        final profilo = await _db.client.from('profili').select('*').eq('email', email).maybeSingle();
+        if (profilo == null) {
+          _snack("Email non trovata.");
+          return;
+        }
+
+        final org = await _db.caricaOrganizzazione(profilo['org_id']);
+        if (org['master_code'] != masterCode) {
+          _snack("Codice master errato.");
+          return;
+        }
+
+        // Qui potresti implementare l'invio della password via email o mostrarla
+        _snack("Password recuperata: ${org['password']}", color: Colors.green);
+        setState(() => _mostraSchermataRecuperoPassword = false);
+      });
+      return;
+    }
+
+    // Per locale
+    for (final org in organizzazioni) {
+      if (_normEmail(org['email'] as String) == email && org['masterCode'] == masterCode) {
+        _snack("Password recuperata: ${org['password']}", color: Colors.green);
+        setState(() => _mostraSchermataRecuperoPassword = false);
+        return;
+      }
+    }
+
+    _snack("Email o codice master errato.");
   }
 
   Widget _buildRegistrazioneAssociazione() {
@@ -1150,29 +1302,33 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogNuovoMezzo(VoidCallback onSave, {Map<String, dynamic>? editMezzo}) {
-    String n = editMezzo?['nome'] ?? "", t = editMezzo?['targa'] ?? "", s = editMezzo?['scadenzaAss'] ?? "";
+    String n = editMezzo?['nome'] ?? "", t = editMezzo?['targa'] ?? "", s = editMezzo?['scadenzaAss'] ?? "", b = editMezzo?['scadenzaBollo'] ?? "";
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(editMezzo == null ? "Nuovo Mezzo" : "Modifica Mezzo"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: TextEditingController(text: n), onChanged: (v) => n = v, decoration: const InputDecoration(labelText: "Nome Mezzo")),
-            TextField(controller: TextEditingController(text: t), onChanged: (v) => t = v, decoration: const InputDecoration(labelText: "Targa")),
-            TextField(controller: TextEditingController(text: s), onChanged: (v) => s = v, decoration: const InputDecoration(labelText: "Scadenza Assicurazione")),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: TextEditingController(text: n), onChanged: (v) => n = v, decoration: const InputDecoration(labelText: "Nome Mezzo")),
+              TextField(controller: TextEditingController(text: t), onChanged: (v) => t = v, decoration: const InputDecoration(labelText: "Targa")),
+              TextField(controller: TextEditingController(text: s), onChanged: (v) => s = v, decoration: const InputDecoration(labelText: "Scadenza Assicurazione")),
+              TextField(controller: TextEditingController(text: b), onChanged: (v) => b = v, decoration: const InputDecoration(labelText: "Scadenza Bollo")),
+            ],
+          ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () {
               setState(() {
                 if (editMezzo == null) {
-                  mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "guasto": false, "notaGuasto": ""});
+                  mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": ""});
                 } else {
                   editMezzo['nome'] = n;
                   editMezzo['targa'] = t;
                   editMezzo['scadenzaAss'] = s;
+                  editMezzo['scadenzaBollo'] = b;
                 }
               });
               onSave();
@@ -1233,8 +1389,8 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogNuovoIntervento() {
-    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": []};
-    String loc = "", tipo = "Incendio";
+    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": [], "coordinateGPS": ""};
+    String loc = "", tipo = "Incendio", coordinate = "";
     List<String> mezziSel = [];
     List<String> volSel = [];
     var mezziDisp = mezzo.where((m) => !m['guasto'] && m['stato'] == "Disponibile").toList();
@@ -1260,6 +1416,23 @@ class _IoSonoVState extends State<IoSonoV> {
                 const Text("Volontari:"),
                 Wrap(children: volDisp.map((v) => FilterChip(label: Text(v['nome']), selected: volSel.contains(v['nome']), onSelected: (s) => setD(() => s ? volSel.add(v['nome']) : volSel.remove(v['nome'])))).toList()),
                 TextField(onChanged: (v) => loc = v, decoration: const InputDecoration(labelText: "Località")),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: TextEditingController(text: coordinate)..selection = TextSelection.collapsed(offset: coordinate.length),
+                        onChanged: (v) => coordinate = v,
+                        decoration: const InputDecoration(labelText: "Coordinate GPS"),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.location_on),
+                      onPressed: () {
+                        _snack("GPS non disponibile su web. Inserisci manualmente le coordinate.");
+                      },
+                    ),
+                  ],
+                ),
                 TextButton.icon(onPressed: () => _scattaFoto(nuovo, setD), icon: const Icon(Icons.camera_alt), label: const Text("FOTO")),
               ],
             ),
@@ -1272,6 +1445,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   nuovo['inizio'] = "${DateTime.now().hour}:${DateTime.now().minute}";
                   nuovo['mezzi'] = mezziSel;
                   nuovo['volontari_impegnati'] = volSel;
+                  nuovo['coordinateGPS'] = coordinate;
                   for (var m in mezziSel) mezzo.firstWhere((e) => e['nome'] == m)['stato'] = "In Intervento";
                   for (var v in volSel) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "In Intervento";
                   interventi.insert(0, nuovo);
@@ -1446,6 +1620,9 @@ class _IoSonoVState extends State<IoSonoV> {
         reportContenuto += "Orario Fine: ${intv['fine'] ?? 'Ancora Operativo'}\n";
         reportContenuto += "Mezzi: ${intv['mezzi'].isEmpty ? 'Nessuno' : intv['mezzi'].join(', ')}\n";
         reportContenuto += "Volontari: ${intv['volontari_impegnati'].isEmpty ? 'Nessuno' : intv['volontari_impegnati'].join(', ')}\n";
+        if (intv['coordinateGPS'] != null && intv['coordinateGPS'].toString().isNotEmpty) {
+          reportContenuto += "Coordinate GPS: ${intv['coordinateGPS']}\n";
+        }
       }
       reportContenuto += "----------------------------------------\n\n";
     }
