@@ -1353,9 +1353,10 @@ class _IoSonoVState extends State<IoSonoV> {
                 onSave();
                 if (c.mounted) Navigator.pop(c);
               },
-            child: const Text("SALVA"),
-          ),
-        ],
+              child: const Text("SALVA"),
+            ),
+          ],
+        ),
       ),
     );
   }
