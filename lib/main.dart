@@ -45,6 +45,7 @@ class _IoSonoVState extends State<IoSonoV> {
 
   late List<Map<String, dynamic>> mezzo = [];
   late List<Map<String, dynamic>> magazzino = [];
+  Map<String, Map<String, String>> _permessiSezione = {};
 
   List<Map<String, dynamic>> interventi = [];
   List<Map<String, String>> segnalazioni = [];
@@ -74,6 +75,22 @@ class _IoSonoVState extends State<IoSonoV> {
   bool get _usaCloud => _db.isReady;
 
   bool get _haOrganizzazioni => _usaCloud ? _haOrgCloud : organizzazioni.isNotEmpty;
+
+  bool _haPermessoSezione(String sezione) {
+    if (_isMasterUser) return true;
+    if (_sessionPermessi == 'pieno_accesso') return true;
+    
+    // Per volontari con permessi granulari
+    final userId = _db.client.auth.currentUser?.id;
+    if (userId != null && _permessiSezione.containsKey(userId)) {
+      final permessi = _permessiSezione[userId];
+      if (permessi != null && permessi.containsKey(sezione)) {
+        return permessi[sezione] == 'pieno_accesso';
+      }
+    }
+    
+    return false;
+  }
 
   Future<void> _bootstrap() async {
     if (_usaCloud) {
@@ -118,6 +135,15 @@ class _IoSonoVState extends State<IoSonoV> {
       m['orgId'] = orgId;
       return m;
     }).toList();
+
+    // Carica permessi granulari per tutti i volontari
+    _permessiSezione.clear();
+    for (var vol in volontari) {
+      if (vol['id'] != null) {
+        final permessi = await _db.caricaPermessiSezione(vol['id']);
+        _permessiSezione[vol['id']] = permessi;
+      }
+    }
 
     setState(() {
       _isAuthenticated = true;
@@ -1207,45 +1233,126 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogPermessiVolontario(Map<String, dynamic> volontario, VoidCallback onSave) {
-    String permessi = volontario['permessi'] ?? 'pieno_accesso';
+    String permessiGlobale = volontario['permessi'] ?? 'pieno_accesso';
+    Map<String, String> permessiSezione = {};
+    
+    if (_usaCloud && volontario['id'] != null) {
+      permessiSezione = Map.from(_permessiSezione[volontario['id']] ?? {});
+    }
+    
+    final sezioni = [
+      'volontari',
+      'mezzi',
+      'magazzino',
+      'sala_radio',
+      'archivio',
+      'segnalazioni'
+    ];
+    
+    final sezioniNomi = {
+      'volontari': 'Volontari',
+      'mezzi': 'Mezzi e Attrezzature',
+      'magazzino': 'Magazzino',
+      'sala_radio': 'Sala Radio',
+      'archivio': 'Archivio',
+      'segnalazioni': 'Segnalazioni'
+    };
+    
     showDialog(
       context: context,
-      builder: (c) => AlertDialog(
-        title: Text("Permessi: ${volontario['nome']}"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text("Scegli il livello di accesso per questo volontario:"),
-            const SizedBox(height: 16),
-            RadioListTile<String>(
-              title: const Text("Pieno Accesso"),
-              subtitle: const Text("Può modificare volontari, mezzi/attrezzature e interventi"),
-              value: 'pieno_accesso',
-              groupValue: permessi,
-              onChanged: (v) => setState(() => permessi = v!),
+      builder: (c) => StatefulBuilder(
+        builder: (context, setD) => AlertDialog(
+          title: Text("Permessi: ${volontario['nome']}"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text("Scegli il livello di accesso globale:"),
+                const SizedBox(height: 8),
+                RadioListTile<String>(
+                  title: const Text("Pieno Accesso Globale"),
+                  subtitle: const Text("Può modificare tutte le sezioni"),
+                  value: 'pieno_accesso',
+                  groupValue: permessiGlobale,
+                  onChanged: (v) => setD(() => permessiGlobale = v!),
+                ),
+                RadioListTile<String>(
+                  title: const Text("Permessi Granulari"),
+                  subtitle: const Text("Configura permessi per ogni sezione"),
+                  value: 'granulare',
+                  groupValue: permessiGlobale,
+                  onChanged: (v) => setD(() => permessiGlobale = v!),
+                ),
+                RadioListTile<String>(
+                  title: const Text("Solo Lettura Globale"),
+                  subtitle: const Text("Può solo visualizzare tutte le sezioni"),
+                  value: 'solo_lettura',
+                  groupValue: permessiGlobale,
+                  onChanged: (v) => setD(() => permessiGlobale = v!),
+                ),
+                if (permessiGlobale == 'granulare') ...[
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text("Configura permessi per sezione:"),
+                  const SizedBox(height: 8),
+                  ...sezioni.map((sezione) {
+                    final permesso = permessiSezione[sezione] ?? 'solo_lettura';
+                    return Column(
+                      children: [
+                        ListTile(
+                          title: Text(sezioniNomi[sezione] ?? sezione),
+                          trailing: DropdownButton<String>(
+                            value: permesso,
+                            items: [
+                              const DropdownMenuItem(value: 'solo_lettura', child: Text('Solo Lettura')),
+                              const DropdownMenuItem(value: 'pieno_accesso', child: Text('Pieno Accesso')),
+                            ],
+                            onChanged: (v) {
+                              if (v != null) {
+                                setD(() => permessiSezione[sezione] = v);
+                              }
+                            },
+                          ),
+                        ),
+                        const Divider(),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ],
             ),
-            RadioListTile<String>(
-              title: const Text("Solo Lettura"),
-              subtitle: const Text("Può solo visualizzare, non modificare nulla"),
-              value: 'solo_lettura',
-              groupValue: permessi,
-              onChanged: (v) => setState(() => permessi = v!),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
-          ElevatedButton(
-            onPressed: () async {
-              setState(() => volontario['permessi'] = permessi);
-              if (_usaCloud && volontario['id'] != null) {
-                await _esegui(() async {
-                  await _db.aggiornaPermessiVolontario(volontario['id'] as String, permessi);
-                }, messaggioOk: "Permessi aggiornati");
-              }
-              onSave();
-              if (c.mounted) Navigator.pop(c);
-            },
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+            ElevatedButton(
+              onPressed: () async {
+                volontario['permessi'] = permessiGlobale;
+                if (_usaCloud && volontario['id'] != null) {
+                  await _esegui(() async {
+                    await _db.aggiornaPermessiVolontario(volontario['id'] as String, permessiGlobale);
+                    
+                    if (permessiGlobale == 'granulare') {
+                      // Salva permessi granulari
+                      for (var sezione in sezioni) {
+                        await _db.salvaPermessoSezione(
+                          volontario['id'],
+                          sezione,
+                          permessiSezione[sezione] ?? 'solo_lettura'
+                        );
+                      }
+                    } else {
+                      // Elimina permessi granulari se non sono granulari
+                      await _db.eliminaPermessiSezione(volontario['id']);
+                    }
+                    
+                    // Ricarica permessi
+                    final nuoviPermessi = await _db.caricaPermessiSezione(volontario['id']);
+                    setState(() => _permessiSezione[volontario['id']] = nuoviPermessi);
+                  }, messaggioOk: "Permessi aggiornati");
+                }
+                onSave();
+                if (c.mounted) Navigator.pop(c);
+              },
             child: const Text("SALVA"),
           ),
         ],
@@ -1279,9 +1386,9 @@ class _IoSonoVState extends State<IoSonoV> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_sessionPermessi == 'pieno_accesso')
+                  if (_haPermessoSezione('mezzi'))
                     IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoMezzo(() => setStateMez(() {}), editMezzo: filtrati[i])),
-                  if (_sessionPermessi == 'pieno_accesso')
+                  if (_haPermessoSezione('mezzi'))
                     IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
                       if (_usaCloud && filtrati[i]['id'] != null) {
                         try {
@@ -1327,7 +1434,7 @@ class _IoSonoVState extends State<IoSonoV> {
             );
           },
         ),
-        floatingActionButton: _sessionPermessi == 'pieno_accesso' ? FloatingActionButton(backgroundColor: Colors.orange[800], child: const Icon(Icons.add_road), onPressed: () => _dialogNuovoMezzo(() => setStateMez(() {}))) : null,
+        floatingActionButton: _haPermessoSezione('mezzi') ? FloatingActionButton(backgroundColor: Colors.orange[800], child: const Icon(Icons.add_road), onPressed: () => _dialogNuovoMezzo(() => setStateMez(() {}))) : null,
       );
     });
   }
@@ -1458,9 +1565,9 @@ class _IoSonoVState extends State<IoSonoV> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_sessionPermessi == 'pieno_accesso')
+                  if (_haPermessoSezione('magazzino'))
                     IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}), editArticolo: filtrati[i])),
-                  if (_sessionPermessi == 'pieno_accesso')
+                  if (_haPermessoSezione('magazzino'))
                     IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
                       if (_usaCloud && filtrati[i]['id'] != null) {
                         try {
@@ -1480,7 +1587,7 @@ class _IoSonoVState extends State<IoSonoV> {
             );
           },
         ),
-        floatingActionButton: _sessionPermessi == 'pieno_accesso' ? FloatingActionButton(backgroundColor: Colors.brown[700], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
+        floatingActionButton: _haPermessoSezione('magazzino') ? FloatingActionButton(backgroundColor: Colors.brown[700], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
       );
     });
   }

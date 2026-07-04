@@ -475,4 +475,25 @@ class SupabaseService {
   Future<void> eliminaArticoloMagazzino(String id) async {
     await client.from('magazzino').delete().eq('id', id);
   }
+
+  Future<Map<String, String>> caricaPermessiSezione(String volontarioId) async {
+    final rows = await client.from('permessi_sezione').select().eq('volontario_id', volontarioId);
+    Map<String, String> permessi = {};
+    for (var r in rows as List) {
+      permessi[r['sezione']] = r['permesso'];
+    }
+    return permessi;
+  }
+
+  Future<void> salvaPermessoSezione(String volontarioId, String sezione, String permesso) async {
+    await client.from('permessi_sezione').upsert({
+      'volontario_id': volontarioId,
+      'sezione': sezione,
+      'permesso': permesso,
+    }, onConflict: 'volontario_id,sezione');
+  }
+
+  Future<void> eliminaPermessiSezione(String volontarioId) async {
+    await client.from('permessi_sezione').delete().eq('volontario_id', volontarioId);
+  }
 }
