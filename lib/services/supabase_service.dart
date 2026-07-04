@@ -397,4 +397,50 @@ class SupabaseService {
     }
     await inviaLinkResetPassword(mail);
   }
+
+  Future<List<Map<String, dynamic>>> caricaMezzi(String orgId) async {
+    final rows = await client.from('mezzi').select().eq('org_id', orgId).order('nome');
+    return (rows as List).map((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      return {
+        'id': m['id'],
+        'nome': m['nome'],
+        'targa': m['targa'],
+        'stato': m['stato'] ?? 'Disponibile',
+        'scadenzaAss': m['scadenza_ass'] ?? '',
+        'scadenzaBollo': m['scadenza_bollo'] ?? '',
+        'guasto': m['guasto'] == true,
+        'notaGuasto': m['nota_guasto'] ?? '',
+        'orgId': m['org_id'],
+      };
+    }).toList();
+  }
+
+  Future<void> salvaMezzo(Map<String, dynamic> m, String orgId) async {
+    final payload = {
+      'org_id': orgId,
+      'nome': m['nome'],
+      'targa': m['targa'],
+      'stato': m['stato'] ?? 'Disponibile',
+      'scadenza_ass': m['scadenzaAss'] ?? '',
+      'scadenza_bollo': m['scadenzaBollo'] ?? '',
+      'guasto': m['guasto'] == true,
+      'nota_guasto': m['notaGuasto'] ?? '',
+    };
+
+    if (m['id'] != null) {
+      await client.from('mezzi').update(payload).eq('id', m['id']);
+    } else {
+      final row = await client.from('mezzi').insert(payload).select().single();
+      m['id'] = row['id'];
+    }
+  }
+
+  Future<void> aggiornaStatoMezzo(String mezzoId, String stato) async {
+    await client.from('mezzi').update({'stato': stato}).eq('id', mezzoId);
+  }
+
+  Future<void> eliminaMezzo(String id) async {
+    await client.from('mezzi').delete().eq('id', id);
+  }
 }

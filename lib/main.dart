@@ -43,10 +43,7 @@ class _IoSonoVState extends State<IoSonoV> {
   bool _haOrgCloud = false;
   bool _operazioneInCorso = false;
 
-  late List<Map<String, dynamic>> mezzo = [
-    {"nome": "Modulo AIB 01", "targa": "VF 123 AA", "stato": "Disponibile", "scadenzaAss": "31/12/2026", "guasto": false, "notaGuasto": ""},
-    {"nome": "Defender 90", "targa": "PC 456 BB", "stato": "Disponibile", "scadenzaAss": "01/06/2026", "guasto": false, "notaGuasto": ""},
-  ];
+  late List<Map<String, dynamic>> mezzo = [];
 
   List<Map<String, dynamic>> interventi = [];
   List<Map<String, String>> segnalazioni = [];
@@ -102,6 +99,7 @@ class _IoSonoVState extends State<IoSonoV> {
     final orgId = profilo['org_id'] as String;
     final org = await _db.caricaOrganizzazione(orgId);
     final listaVolontari = await _db.caricaVolontari(orgId);
+    final listaMezzi = await _db.caricaMezzi(orgId);
 
     organizzazioni
       ..clear()
@@ -109,6 +107,10 @@ class _IoSonoVState extends State<IoSonoV> {
     volontari = listaVolontari.map((v) {
       v['orgNome'] = org['nome'];
       return v;
+    }).toList();
+    mezzo = listaMezzi.map((m) {
+      m['orgId'] = orgId;
+      return m;
     }).toList();
 
     setState(() {
@@ -1273,19 +1275,41 @@ class _IoSonoVState extends State<IoSonoV> {
                   if (_sessionPermessi == 'pieno_accesso')
                     IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoMezzo(() => setStateMez(() {}), editMezzo: filtrati[i])),
                   if (_sessionPermessi == 'pieno_accesso')
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () {
-                      setState(() => mezzo.remove(filtrati[i]));
-                      setStateMez(() {});
+                    IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
+                      if (_usaCloud && filtrati[i]['id'] != null) {
+                        try {
+                          await _db.eliminaMezzo(filtrati[i]['id']);
+                          setState(() => mezzo.remove(filtrati[i]));
+                          setStateMez(() {});
+                        } catch (e) {
+                          _snack("Errore eliminazione mezzo: $e");
+                        }
+                      } else {
+                        setState(() => mezzo.remove(filtrati[i]));
+                        setStateMez(() {});
+                      }
                     }),
                   PopupMenuButton<String>(
-                    onSelected: (String s) {
+                    onSelected: (String s) async {
                       if (s == "Manutenzione") {
                         _dialogGestioneMezzo(filtrati[i], () => setStateMez(() {}));
                       } else {
-                        setState(() {
-                          filtrati[i]['stato'] = s;
-                          if (s == "Disponibile") filtrati[i]['guasto'] = false;
-                        });
+                        if (_usaCloud && filtrati[i]['id'] != null) {
+                          try {
+                            await _db.aggiornaStatoMezzo(filtrati[i]['id'], s);
+                            setState(() {
+                              filtrati[i]['stato'] = s;
+                              if (s == "Disponibile") filtrati[i]['guasto'] = false;
+                            });
+                          } catch (e) {
+                            _snack("Errore aggiornamento stato: $e");
+                          }
+                        } else {
+                          setState(() {
+                            filtrati[i]['stato'] = s;
+                            if (s == "Disponibile") filtrati[i]['guasto'] = false;
+                          });
+                        }
                         setStateMez(() {});
                       }
                     },
@@ -1320,19 +1344,40 @@ class _IoSonoVState extends State<IoSonoV> {
         ),
         actions: [
           ElevatedButton(
-            onPressed: () {
-              setState(() {
-                if (editMezzo == null) {
-                  mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": ""});
-                } else {
-                  editMezzo['nome'] = n;
-                  editMezzo['targa'] = t;
-                  editMezzo['scadenzaAss'] = s;
-                  editMezzo['scadenzaBollo'] = b;
+            onPressed: () async {
+              if (_usaCloud && _sessionOrgId != null) {
+                try {
+                  if (editMezzo == null) {
+                    final nuovoMezzo = {"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": "", "orgId": _sessionOrgId};
+                    await _db.salvaMezzo(nuovoMezzo, _sessionOrgId!);
+                    mezzo.add(nuovoMezzo);
+                  } else {
+                    editMezzo['nome'] = n;
+                    editMezzo['targa'] = t;
+                    editMezzo['scadenzaAss'] = s;
+                    editMezzo['scadenzaBollo'] = b;
+                    await _db.salvaMezzo(editMezzo, _sessionOrgId!);
+                  }
+                  setState(() {});
+                  onSave();
+                  Navigator.pop(c);
+                } catch (e) {
+                  _snack("Errore salvataggio mezzo: $e");
                 }
-              });
-              onSave();
-              Navigator.pop(c);
+              } else {
+                setState(() {
+                  if (editMezzo == null) {
+                    mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": ""});
+                  } else {
+                    editMezzo['nome'] = n;
+                    editMezzo['targa'] = t;
+                    editMezzo['scadenzaAss'] = s;
+                    editMezzo['scadenzaBollo'] = b;
+                  }
+                });
+                onSave();
+                Navigator.pop(c);
+              }
             },
             child: const Text("SALVA"),
           )
