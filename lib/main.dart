@@ -44,6 +44,7 @@ class _IoSonoVState extends State<IoSonoV> {
   bool _operazioneInCorso = false;
 
   late List<Map<String, dynamic>> mezzo = [];
+  late List<Map<String, dynamic>> magazzino = [];
 
   List<Map<String, dynamic>> interventi = [];
   List<Map<String, String>> segnalazioni = [];
@@ -100,6 +101,7 @@ class _IoSonoVState extends State<IoSonoV> {
     final org = await _db.caricaOrganizzazione(orgId);
     final listaVolontari = await _db.caricaVolontari(orgId);
     final listaMezzi = await _db.caricaMezzi(orgId);
+    final listaMagazzino = await _db.caricaMagazzino(orgId);
 
     organizzazioni
       ..clear()
@@ -109,6 +111,10 @@ class _IoSonoVState extends State<IoSonoV> {
       return v;
     }).toList();
     mezzo = listaMezzi.map((m) {
+      m['orgId'] = orgId;
+      return m;
+    }).toList();
+    magazzino = listaMagazzino.map((m) {
       m['orgId'] = orgId;
       return m;
     }).toList();
@@ -975,6 +981,7 @@ class _IoSonoVState extends State<IoSonoV> {
                     _card("INVITI", Icons.folder_shared_rounded, Colors.indigo[700]!, () => _vaiA(_paginaCartellaInviti())),
                   _card("VOLONTARI", Icons.people_alt_rounded, Colors.blue[700]!, () => _vaiA(_paginaVolontari())),
                   _card("MEZZI E ATTREZZATURE", Icons.local_shipping_rounded, Colors.orange[800]!, () => _vaiA(_paginaMezzi())),
+                  _card("MAGAZZINO", Icons.inventory, Colors.brown[700]!, () => _vaiA(_paginaMagazzino())),
                   _card("SALA RADIO", Icons.settings_input_antenna, Colors.green[700]!, () => _vaiA(_paginaSalaRadio())),
                   if (_isMasterUser)
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
@@ -1420,6 +1427,125 @@ class _IoSonoVState extends State<IoSonoV> {
         ],
       ),
     );
+  }
+
+  Widget _paginaMagazzino() {
+    String query = "";
+    return StatefulBuilder(builder: (context, setStateMag) {
+      var filtrati = magazzino.where((m) => m['descrizione'].toLowerCase().contains(query.toLowerCase())).toList();
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.brown[700],
+          title: TextField(
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(hintText: "Cerca articolo...", hintStyle: TextStyle(color: Colors.white70), border: InputBorder.none),
+            onChanged: (v) => setStateMag(() => query = v),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: () => _esportaMagazzinoExcel(filtrati),
+            ),
+          ],
+        ),
+        body: ListView.builder(
+          itemCount: filtrati.length,
+          itemBuilder: (c, i) {
+            return ListTile(
+              leading: const Icon(Icons.inventory_2, color: Colors.brown),
+              title: Text(filtrati[i]['descrizione']),
+              subtitle: Text("Quantità: ${filtrati[i]['quantita']}"),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_sessionPermessi == 'pieno_accesso')
+                    IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}), editArticolo: filtrati[i])),
+                  if (_sessionPermessi == 'pieno_accesso')
+                    IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
+                      if (_usaCloud && filtrati[i]['id'] != null) {
+                        try {
+                          await _db.eliminaArticoloMagazzino(filtrati[i]['id']);
+                          setState(() => magazzino.remove(filtrati[i]));
+                          setStateMag(() {});
+                        } catch (e) {
+                          _snack("Errore eliminazione articolo: $e");
+                        }
+                      } else {
+                        setState(() => magazzino.remove(filtrati[i]));
+                        setStateMag(() {});
+                      }
+                    }),
+                ],
+              ),
+            );
+          },
+        ),
+        floatingActionButton: _sessionPermessi == 'pieno_accesso' ? FloatingActionButton(backgroundColor: Colors.brown[700], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
+      );
+    });
+  }
+
+  void _dialogNuovoArticolo(VoidCallback onSave, {Map<String, dynamic>? editArticolo}) {
+    String d = editArticolo?['descrizione'] ?? "", q = editArticolo?['quantita']?.toString() ?? "0";
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: Text(editArticolo == null ? "Nuovo Articolo" : "Modifica Articolo"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: TextEditingController(text: d), onChanged: (v) => d = v, decoration: const InputDecoration(labelText: "Descrizione")),
+              TextField(controller: TextEditingController(text: q), onChanged: (v) => q = v, decoration: const InputDecoration(labelText: "Quantità"), keyboardType: TextInputType.number),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              if (_usaCloud && _sessionOrgId != null) {
+                try {
+                  if (editArticolo == null) {
+                    final nuovoArticolo = {"descrizione": d, "quantita": int.tryParse(q) ?? 0, "orgId": _sessionOrgId};
+                    await _db.salvaArticoloMagazzino(nuovoArticolo, _sessionOrgId!);
+                    magazzino.add(nuovoArticolo);
+                  } else {
+                    editArticolo['descrizione'] = d;
+                    editArticolo['quantita'] = int.tryParse(q) ?? 0;
+                    await _db.salvaArticoloMagazzino(editArticolo, _sessionOrgId!);
+                  }
+                  setState(() {});
+                  onSave();
+                  Navigator.pop(c);
+                } catch (e) {
+                  _snack("Errore salvataggio articolo: $e");
+                }
+              } else {
+                setState(() {
+                  if (editArticolo == null) {
+                    magazzino.add({"descrizione": d, "quantita": int.tryParse(q) ?? 0});
+                  } else {
+                    editArticolo['descrizione'] = d;
+                    editArticolo['quantita'] = int.tryParse(q) ?? 0;
+                  }
+                });
+                onSave();
+                Navigator.pop(c);
+              }
+            },
+            child: const Text("SALVA"),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _esportaMagazzinoExcel(List<Map<String, dynamic>> articoli) {
+    String csv = "Descrizione,Quantità\n";
+    for (var art in articoli) {
+      csv += "${art['descrizione']},${art['quantita']}\n";
+    }
+    Share.share(csv, subject: 'Magazzino Export');
   }
 
   Widget _paginaSalaRadio() {

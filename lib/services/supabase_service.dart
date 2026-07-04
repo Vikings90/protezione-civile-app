@@ -443,4 +443,36 @@ class SupabaseService {
   Future<void> eliminaMezzo(String id) async {
     await client.from('mezzi').delete().eq('id', id);
   }
+
+  Future<List<Map<String, dynamic>>> caricaMagazzino(String orgId) async {
+    final rows = await client.from('magazzino').select().eq('org_id', orgId).order('descrizione');
+    return (rows as List).map((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      return {
+        'id': m['id'],
+        'descrizione': m['descrizione'],
+        'quantita': m['quantita'] ?? 0,
+        'orgId': m['org_id'],
+      };
+    }).toList();
+  }
+
+  Future<void> salvaArticoloMagazzino(Map<String, dynamic> articolo, String orgId) async {
+    final payload = {
+      'org_id': orgId,
+      'descrizione': articolo['descrizione'],
+      'quantita': articolo['quantita'] ?? 0,
+    };
+
+    if (articolo['id'] != null) {
+      await client.from('magazzino').update(payload).eq('id', articolo['id']);
+    } else {
+      final row = await client.from('magazzino').insert(payload).select().single();
+      articolo['id'] = row['id'];
+    }
+  }
+
+  Future<void> eliminaArticoloMagazzino(String id) async {
+    await client.from('magazzino').delete().eq('id', id);
+  }
 }
