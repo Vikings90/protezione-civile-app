@@ -974,7 +974,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   if (_isMasterUser)
                     _card("INVITI", Icons.folder_shared_rounded, Colors.indigo[700]!, () => _vaiA(_paginaCartellaInviti())),
                   _card("VOLONTARI", Icons.people_alt_rounded, Colors.blue[700]!, () => _vaiA(_paginaVolontari())),
-                  _card("MEZZI", Icons.local_shipping_rounded, Colors.orange[800]!, () => _vaiA(_paginaMezzi())),
+                  _card("MEZZI E ATTREZZATURE", Icons.local_shipping_rounded, Colors.orange[800]!, () => _vaiA(_paginaMezzi())),
                   _card("SALA RADIO", Icons.settings_input_antenna, Colors.green[700]!, () => _vaiA(_paginaSalaRadio())),
                   if (_isMasterUser)
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
@@ -1212,7 +1212,7 @@ class _IoSonoVState extends State<IoSonoV> {
             const SizedBox(height: 16),
             RadioListTile<String>(
               title: const Text("Pieno Accesso"),
-              subtitle: const Text("Può modificare volontari, mezzi e interventi"),
+              subtitle: const Text("Può modificare volontari, mezzi/attrezzature e interventi"),
               value: 'pieno_accesso',
               groupValue: permessi,
               onChanged: (v) => setState(() => permessi = v!),
@@ -1255,7 +1255,7 @@ class _IoSonoVState extends State<IoSonoV> {
           backgroundColor: Colors.orange[800],
           title: TextField(
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(hintText: "Cerca Mezzo o Targa...", hintStyle: TextStyle(color: Colors.white70), border: InputBorder.none),
+            decoration: const InputDecoration(hintText: "Cerca Mezzo o Attrezzatura...", hintStyle: TextStyle(color: Colors.white70), border: InputBorder.none),
             onChanged: (v) => setStateMez(() => query = v),
           ),
         ),
@@ -1330,12 +1330,12 @@ class _IoSonoVState extends State<IoSonoV> {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(editMezzo == null ? "Nuovo Mezzo" : "Modifica Mezzo"),
+        title: Text(editMezzo == null ? "Nuovo Mezzo/Attrezzatura" : "Modifica Mezzo/Attrezzatura"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: TextEditingController(text: n), onChanged: (v) => n = v, decoration: const InputDecoration(labelText: "Nome Mezzo")),
+              TextField(controller: TextEditingController(text: n), onChanged: (v) => n = v, decoration: const InputDecoration(labelText: "Nome Mezzo/Attrezzatura")),
               TextField(controller: TextEditingController(text: t), onChanged: (v) => t = v, decoration: const InputDecoration(labelText: "Targa")),
               TextField(controller: TextEditingController(text: s), onChanged: (v) => s = v, decoration: const InputDecoration(labelText: "Scadenza Assicurazione")),
               TextField(controller: TextEditingController(text: b), onChanged: (v) => b = v, decoration: const InputDecoration(labelText: "Scadenza Bollo")),
