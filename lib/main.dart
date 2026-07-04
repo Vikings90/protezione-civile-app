@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1539,6 +1542,7 @@ class _IoSonoVState extends State<IoSonoV> {
 
   Widget _paginaMagazzino() {
     String query = "";
+    List<int> selezionati = [];
     return StatefulBuilder(builder: (context, setStateMag) {
       var filtrati = magazzino.where((m) => m['descrizione'].toLowerCase().contains(query.toLowerCase())).toList();
       return Scaffold(
@@ -1552,41 +1556,66 @@ class _IoSonoVState extends State<IoSonoV> {
           actions: [
             IconButton(
               icon: const Icon(Icons.download),
-              onPressed: () => _esportaMagazzinoExcel(filtrati),
+              onPressed: () {
+                final articoliSelezionati = filtrati.where((art) => selezionati.contains(filtrati.indexOf(art))).toList();
+                _esportaMagazzinoExcel(articoliSelezionati);
+              },
             ),
           ],
         ),
-        body: ListView.builder(
-          itemCount: filtrati.length,
-          itemBuilder: (c, i) {
-            return ListTile(
-              leading: const Icon(Icons.inventory_2, color: Colors.brown),
-              title: Text(filtrati[i]['descrizione']),
-              subtitle: Text("Quantità: ${filtrati[i]['quantita']}"),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_haPermessoSezione('magazzino'))
-                    IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}), editArticolo: filtrati[i])),
-                  if (_haPermessoSezione('magazzino'))
-                    IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
-                      if (_usaCloud && filtrati[i]['id'] != null) {
-                        try {
-                          await _db.eliminaArticoloMagazzino(filtrati[i]['id']);
-                          setState(() => magazzino.remove(filtrati[i]));
-                          setStateMag(() {});
-                        } catch (e) {
-                          _snack("Errore eliminazione articolo: $e");
-                        }
-                      } else {
-                        setState(() => magazzino.remove(filtrati[i]));
-                        setStateMag(() {});
-                      }
-                    }),
-                ],
+        body: Column(
+          children: [
+            if (selezionati.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text("${selezionati.length} articoli selezionati", style: const TextStyle(color: Colors.brown, fontWeight: FontWeight.bold)),
               ),
-            );
-          },
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtrati.length,
+                itemBuilder: (c, i) {
+                  return ListTile(
+                    leading: Checkbox(
+                      value: selezionati.contains(i),
+                      onChanged: (v) {
+                        setStateMag(() {
+                          if (v == true) {
+                            selezionati.add(i);
+                          } else {
+                            selezionati.remove(i);
+                          }
+                        });
+                      },
+                    ),
+                    title: Text(filtrati[i]['descrizione']),
+                    subtitle: Text("Quantità: ${filtrati[i]['quantita']}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_haPermessoSezione('magazzino'))
+                          IconButton(icon: const Icon(Icons.edit, color: Colors.grey), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}), editArticolo: filtrati[i])),
+                        if (_haPermessoSezione('magazzino'))
+                          IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () async {
+                            if (_usaCloud && filtrati[i]['id'] != null) {
+                              try {
+                                await _db.eliminaArticoloMagazzino(filtrati[i]['id']);
+                                setState(() => magazzino.remove(filtrati[i]));
+                                setStateMag(() {});
+                              } catch (e) {
+                                _snack("Errore eliminazione articolo: $e");
+                              }
+                            } else {
+                              setState(() => magazzino.remove(filtrati[i]));
+                              setStateMag(() {});
+                            }
+                          }),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
         floatingActionButton: _haPermessoSezione('magazzino') ? FloatingActionButton(backgroundColor: Colors.brown[700], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
       );
@@ -1649,11 +1678,28 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _esportaMagazzinoExcel(List<Map<String, dynamic>> articoli) {
-    String csv = "Descrizione,Quantità\n";
-    for (var art in articoli) {
-      csv += "${art['descrizione']},${art['quantita']}\n";
+    if (articoli.isEmpty) {
+      _snack("Nessun articolo selezionato per l'esportazione");
+      return;
     }
-    Share.share(csv, subject: 'Magazzino Export');
+    
+    String csv = "Descrizione;Quantità\n";
+    for (var art in articoli) {
+      csv += "${art['descrizione']};${art['quantita']}\n";
+    }
+    
+    // Crea un file temporaneo
+    final bytes = utf8.encode(csv);
+    final blob = html.Blob([bytes], 'text/csv;charset=utf-8;');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    
+    // Crea un link per il download
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "magazzino_export.csv")
+      ..click();
+    
+    // Pulisce
+    html.Url.revokeObjectUrl(url);
   }
 
   Widget _paginaSalaRadio() {
