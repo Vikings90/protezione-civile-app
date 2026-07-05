@@ -1703,18 +1703,31 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   Widget _paginaSalaRadio() {
-    var inRadio = _volontariOrganizzazione.where((v) => v['stato'] == "Sala Radio").toList();
+    var interventiInCorso = interventi.where((i) => i['stato'] == "sala_radio").toList();
     return Scaffold(
       appBar: AppBar(title: const Text("Sala Radio"), backgroundColor: Colors.green[700]),
-      body: ListView.builder(
-        itemCount: inRadio.length,
-        itemBuilder: (context, i) => ListTile(title: Text(inRadio[i]['nome']), leading: const Icon(Icons.mic)),
-      ),
+      body: interventiInCorso.isEmpty
+          ? const Center(child: Text("Nessun intervento in corso", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              itemCount: interventiInCorso.length,
+              itemBuilder: (context, i) => Card(
+                margin: const EdgeInsets.all(8),
+                child: ListTile(
+                  title: Text(interventiInCorso[i]['titolo']),
+                  subtitle: Text("Inizio: ${interventiInCorso[i]['inizio']}\nMezzi: ${interventiInCorso[i]['mezzi'].join(", ")}\nVolontari: ${interventiInCorso[i]['volontari_impegnati'].join(", ")}"),
+                  leading: const Icon(Icons.radio, color: Colors.green),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () => _dialogDettaglioIntervento(interventiInCorso[i], () => setState(() {})),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
   void _dialogNuovoIntervento() {
-    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": []};
+    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": [], "stato": "sala_radio"};
     String loc = "", tipo = "Incendio";
     List<String> mezziSel = [];
     List<String> volSel = [];
@@ -1753,6 +1766,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   nuovo['inizio'] = "${DateTime.now().hour}:${DateTime.now().minute}";
                   nuovo['mezzi'] = mezziSel;
                   nuovo['volontari_impegnati'] = volSel;
+                  nuovo['stato'] = "sala_radio";
                   for (var m in mezziSel) mezzo.firstWhere((e) => e['nome'] == m)['stato'] = "In Intervento";
                   for (var v in volSel) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "In Intervento";
                   interventi.insert(0, nuovo);
@@ -1768,17 +1782,18 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   Widget _paginaArchivioInterventi() {
+    var interventiArchiviati = interventi.where((i) => i['stato'] == "archiviato").toList();
     return Scaffold(
       appBar: AppBar(
         title: const Text("Archivio Generale"),
         backgroundColor: Colors.blueGrey[700],
         actions: [IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: _esportaSelezionati)],
       ),
-      body: (interventi.isEmpty && segnalazioni.isEmpty)
+      body: (interventiArchiviati.isEmpty && segnalazioni.isEmpty)
           ? const Center(child: Text("Archivio vuoto", style: TextStyle(color: Colors.grey)))
           : CustomScrollView(
               slivers: [
-                if (interventi.isNotEmpty) ...[
+                if (interventiArchiviati.isNotEmpty) ...[
                   const SliverToBoxAdapter(
                     child: Padding(
                       padding: EdgeInsets.all(12.0),
@@ -1788,15 +1803,15 @@ class _IoSonoVState extends State<IoSonoV> {
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                       (context, i) => ListTile(
-                        title: Text(interventi[i]['titolo']),
-                        subtitle: Text("Inizio: ${interventi[i]['inizio']}"),
+                        title: Text(interventiArchiviati[i]['titolo']),
+                        subtitle: Text("Inizio: ${interventiArchiviati[i]['inizio']}\nFine: ${interventiArchiviati[i]['fine']}"),
                         leading: Checkbox(
                           value: selezionatiInterventi.contains(i),
                           onChanged: (v) => setState(() => v! ? selezionatiInterventi.add(i) : selezionatiInterventi.remove(i)),
                         ),
-                        onTap: () => _dialogDettaglioIntervento(interventi[i], () => setState(() {})),
+                        onTap: () => _dialogDettaglioIntervento(interventiArchiviati[i], () => setState(() {})),
                       ),
-                      childCount: interventi.length,
+                      childCount: interventiArchiviati.length,
                     ),
                   ),
                 ],
@@ -1847,6 +1862,7 @@ class _IoSonoVState extends State<IoSonoV> {
               onPressed: () {
                 setState(() {
                   inter['fine'] = "${DateTime.now().hour}:${DateTime.now().minute}";
+                  inter['stato'] = "archiviato";
                   for (var m in inter['mezzi']) mezzo.firstWhere((e) => e['nome'] == m)['stato'] = "Disponibile";
                   for (var v in inter['volontari_impegnati']) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "Disponibile";
                 });
