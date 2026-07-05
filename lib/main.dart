@@ -52,6 +52,7 @@ class _IoSonoVState extends State<IoSonoV> {
 
   List<Map<String, dynamic>> interventi = [];
   List<Map<String, String>> segnalazioni = [];
+  List<Map<String, dynamic>> pecFiles = [];
 
   List<int> selezionatiInterventi = [];
   List<int> listaSegnalazioniSelezionate = [];
@@ -1015,6 +1016,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   if (_isMasterUser)
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
                   _card("SEGNALAZIONI", Icons.report_problem_rounded, Colors.purple[700]!, () => _vaiA(_paginaSegnalazioni())),
+                  _card("P.E.C", Icons.picture_as_pdf, Colors.red[700]!, () => _vaiA(_paginaPEC())),
                 ],
               ),
             ),
@@ -1702,6 +1704,159 @@ class _IoSonoVState extends State<IoSonoV> {
     html.Url.revokeObjectUrl(url);
   }
 
+  void _cancellaIntervento(Map<String, dynamic> intervento) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Cancella Intervento"),
+        content: const Text("Sei sicuro di voler cancellare questo intervento?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => interventi.remove(intervento));
+              Navigator.pop(c);
+              _snack("Intervento cancellato", color: Colors.green);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("CANCELLA"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _cancellaInterventiSelezionati() {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Cancella Interventi Selezionati"),
+        content: Text("Sei sicuro di voler cancellare ${selezionatiInterventi.length} interventi?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+          ElevatedButton(
+            onPressed: () {
+              var interventiArchiviati = interventi.where((i) => i['stato'] == "archiviato").toList();
+              selezionatiInterventi.sort((a, b) => b.compareTo(a));
+              for (var idx in selezionatiInterventi) {
+                interventi.remove(interventiArchiviati[idx]);
+              }
+              selezionatiInterventi.clear();
+              setState(() {});
+              Navigator.pop(c);
+              _snack("Interventi cancellati", color: Colors.green);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("CANCELLA"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paginaPEC() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("P.E.C - Posta Elettronica Certificata"),
+        backgroundColor: Colors.red[700],
+      ),
+      body: pecFiles.isEmpty
+          ? const Center(child: Text("Nessun file caricato", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              itemCount: pecFiles.length,
+              itemBuilder: (context, i) => Card(
+                margin: const EdgeInsets.all(8),
+                child: ListTile(
+                  leading: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  title: Text(pecFiles[i]['nome']),
+                  subtitle: Text("Caricato: ${pecFiles[i]['data']}"),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.download, color: Colors.blue),
+                        onPressed: () => _downloadPECFile(pecFiles[i]),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: () => _cancellaPECFile(i),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.red[700],
+        child: const Icon(Icons.upload_file),
+        onPressed: _caricaPECFile,
+      ),
+    );
+  }
+
+  Future<void> _caricaPECFile() async {
+    final input = html.FileUploadInputElement()..accept = 'application/pdf';
+    input.click();
+    
+    input.onChange.listen((e) async {
+      final files = input.files;
+      if (files != null && files.isNotEmpty) {
+        final file = files[0];
+        final reader = html.FileReader();
+        
+        reader.onLoad.listen((e) {
+          final result = reader.result as String;
+          setState(() {
+            pecFiles.add({
+              'nome': file.name,
+              'data': DateTime.now().toString().substring(0, 16),
+              'contenuto': result,
+              'dimensione': '${(file.size / 1024).toStringAsFixed(2)} KB',
+            });
+          });
+          _snack("File caricato con successo", color: Colors.green);
+        });
+        
+        reader.readAsDataUrl(file);
+      }
+    });
+  }
+
+  void _downloadPECFile(Map<String, dynamic> file) {
+    final contenuto = file['contenuto'] as String;
+    final bytes = base64Decode(contenuto.split(',').last);
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", file['nome'])
+      ..click();
+    
+    html.Url.revokeObjectUrl(url);
+  }
+
+  void _cancellaPECFile(int index) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Cancella File"),
+        content: const Text("Sei sicuro di voler cancellare questo file?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => pecFiles.removeAt(index));
+              Navigator.pop(c);
+              _snack("File cancellato", color: Colors.green);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("CANCELLA"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _paginaSalaRadio() {
     var interventiInCorso = interventi.where((i) => i['stato'] == "sala_radio").toList();
     return Scaffold(
@@ -1787,7 +1942,11 @@ class _IoSonoVState extends State<IoSonoV> {
       appBar: AppBar(
         title: const Text("Archivio Generale"),
         backgroundColor: Colors.blueGrey[700],
-        actions: [IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: _esportaSelezionati)],
+        actions: [
+          IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: _esportaSelezionati),
+          if (selezionatiInterventi.isNotEmpty)
+            IconButton(icon: const Icon(Icons.delete, color: Colors.white), onPressed: () => _cancellaInterventiSelezionati()),
+        ],
       ),
       body: (interventiArchiviati.isEmpty && segnalazioni.isEmpty)
           ? const Center(child: Text("Archivio vuoto", style: TextStyle(color: Colors.grey)))
@@ -1808,6 +1967,10 @@ class _IoSonoVState extends State<IoSonoV> {
                         leading: Checkbox(
                           value: selezionatiInterventi.contains(i),
                           onChanged: (v) => setState(() => v! ? selezionatiInterventi.add(i) : selezionatiInterventi.remove(i)),
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () => _cancellaIntervento(interventiArchiviati[i]),
                         ),
                         onTap: () => _dialogDettaglioIntervento(interventiArchiviati[i], () => setState(() {})),
                       ),
