@@ -1211,7 +1211,7 @@ class _IoSonoVState extends State<IoSonoV> {
                     "nome": n,
                     "ruolo": "Volontario",
                     "patenteC": pC,
-                    "stato": "Disponibile",
+                    "stato": "Non Disponibile",
                     "inServizio": true,
                     "orgId": _sessionOrgId,
                     "orgNome": _orgSessione?['nome'] ?? '',
