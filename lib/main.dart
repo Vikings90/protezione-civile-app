@@ -1900,20 +1900,41 @@ class _IoSonoVState extends State<IoSonoV> {
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 40),
-            SizedBox(
-              width: 200,
-              height: 60,
-              child: ElevatedButton(
-                onPressed: () => _registraPresenza(volontarioCorrente, isInServizio),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isInServizio ? Colors.red : Colors.green,
-                  foregroundColor: Colors.white,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 180,
+                  height: 60,
+                  child: ElevatedButton(
+                    onPressed: () => _registraEntrata(volontarioCorrente),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text(
+                      "ENTRATA",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-                child: Text(
-                  isInServizio ? "REGISTRA USCITA" : "REGISTRA ENTRATA",
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                const SizedBox(width: 20),
+                SizedBox(
+                  width: 180,
+                  height: 60,
+                  child: ElevatedButton(
+                    onPressed: () => _registraUscita(volontarioCorrente),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text(
+                      "USCITA",
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
@@ -1921,54 +1942,66 @@ class _IoSonoVState extends State<IoSonoV> {
     );
   }
 
-  Future<void> _registraPresenza(Map<String, dynamic> volontario, bool isInServizio) async {
+  Future<void> _registraEntrata(Map<String, dynamic> volontario) async {
+    if (volontario['stato'] == "Disponibile") {
+      _snack("Sei già in servizio", color: Colors.orange);
+      return;
+    }
+
     final now = DateTime.now();
     final timestamp = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
 
-    if (isInServizio) {
-      // Registrazione uscita
-      showDialog(
-        context: context,
-        builder: (c) => AlertDialog(
-          title: const Text("Conferma Uscita"),
-          content: const Text("Sei sicuro di voler registrare l'uscita dal servizio?"),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  volontario['stato'] = "Non Disponibile";
-                  // Trova e aggiorna l'ultima registrazione di entrata
-                  final ultimaRegistrazione = registrazioniPresenze.lastWhere(
-                    (r) => r['volontario_id'] == volontario['id'] && r['uscita'] == null,
-                    orElse: () => <String, dynamic>{},
-                  );
-                  if (ultimaRegistrazione.isNotEmpty) {
-                    ultimaRegistrazione['uscita'] = timestamp;
-                  }
-                });
-                Navigator.pop(c);
-                _snack("Uscita registrata con successo", color: Colors.green);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text("CONFERMA"),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Registrazione entrata
-      setState(() {
-        volontario['stato'] = "Disponibile";
-        registrazioniPresenze.add({
-          'volontario_id': volontario['id'],
-          'volontario_nome': volontario['nome'],
-          'entrata': timestamp,
-          'uscita': null,
-        });
+    setState(() {
+      volontario['stato'] = "Disponibile";
+      registrazioniPresenze.add({
+        'volontario_id': volontario['id'],
+        'volontario_nome': volontario['nome'],
+        'giorno': "${now.day}/${now.month}/${now.year}",
+        'entrata': timestamp,
+        'uscita': null,
       });
-      _snack("Entrata registrata con successo", color: Colors.green);
+    });
+    _snack("Entrata registrata con successo", color: Colors.green);
+  }
+
+  Future<void> _registraUscita(Map<String, dynamic> volontario) async {
+    if (volontario['stato'] != "Disponibile") {
+      _snack("Non sei in servizio", color: Colors.orange);
+      return;
     }
+
+    final now = DateTime.now();
+    final timestamp = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
+
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Conferma Uscita"),
+        content: const Text("Sei sicuro di voler registrare l'uscita dal servizio?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                volontario['stato'] = "Non Disponibile";
+                // Trova e aggiorna l'ultima registrazione di entrata
+                final ultimaRegistrazione = registrazioniPresenze.lastWhere(
+                  (r) => r['volontario_id'] == volontario['id'] && r['uscita'] == null,
+                  orElse: () => <String, dynamic>{},
+                );
+                if (ultimaRegistrazione.isNotEmpty) {
+                  ultimaRegistrazione['uscita'] = timestamp;
+                }
+              });
+              Navigator.pop(c);
+              _snack("Uscita registrata con successo", color: Colors.green);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("CONFERMA"),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _paginaGestionePresenze() {
@@ -1993,7 +2026,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   leading: const Icon(Icons.person, color: Colors.amber),
                   title: Text(registrazioniPresenze[i]['volontario_nome']),
                   subtitle: Text(
-                    "Entrata: ${registrazioniPresenze[i]['entrata']}\nUscita: ${registrazioniPresenze[i]['uscita'] ?? 'In corso'}",
+                    "Giorno: ${registrazioniPresenze[i]['giorno']}\nEntrata: ${registrazioniPresenze[i]['entrata']}\nUscita: ${registrazioniPresenze[i]['uscita'] ?? 'In corso'}",
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete, color: Colors.redAccent),
@@ -2011,9 +2044,9 @@ class _IoSonoVState extends State<IoSonoV> {
       return;
     }
 
-    String csv = "Volontario;Entrata;Uscita\n";
+    String csv = "Volontario;Giorno;Entrata;Uscita\n";
     for (var reg in registrazioniPresenze) {
-      csv += "${reg['volontario_nome']};${reg['entrata']};${reg['uscita'] ?? 'In corso'}\n";
+      csv += "${reg['volontario_nome']};${reg['giorno']};${reg['entrata']};${reg['uscita'] ?? 'In corso'}\n";
     }
 
     final bytes = utf8.encode(csv);
