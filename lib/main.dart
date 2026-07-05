@@ -53,6 +53,7 @@ class _IoSonoVState extends State<IoSonoV> {
   List<Map<String, dynamic>> interventi = [];
   List<Map<String, String>> segnalazioni = [];
   List<Map<String, dynamic>> pecFiles = [];
+  List<Map<String, dynamic>> registrazioniPresenze = [];
 
   List<int> selezionatiInterventi = [];
   List<int> listaSegnalazioniSelezionate = [];
@@ -1017,6 +1018,9 @@ class _IoSonoVState extends State<IoSonoV> {
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
                   _card("SEGNALAZIONI", Icons.report_problem_rounded, Colors.purple[700]!, () => _vaiA(_paginaSegnalazioni())),
                   _card("PIANO EMERGENZA COMUNALE", Icons.picture_as_pdf, Colors.red[700]!, () => _vaiA(_paginaPEC())),
+                  _card("PRESENZA", Icons.how_to_reg, Colors.teal[700]!, () => _vaiA(_paginaPresenza())),
+                  if (_isMasterUser)
+                    _card("GESTIONE PRESENZE", Icons.assignment, Colors.amber[700]!, () => _vaiA(_paginaGestionePresenze())),
                 ],
               ),
             ),
@@ -1848,6 +1852,194 @@ class _IoSonoVState extends State<IoSonoV> {
               setState(() => pecFiles.removeAt(index));
               Navigator.pop(c);
               _snack("File cancellato", color: Colors.green);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("CANCELLA"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _paginaPresenza() {
+    // Trova il volontario corrente
+    final userId = _db.client.auth.currentUser?.id;
+    final volontarioCorrente = volontari.firstWhere(
+      (v) => v['id'] == userId,
+      orElse: () => <String, dynamic>{},
+    );
+
+    if (volontarioCorrente.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Presenza"), backgroundColor: Colors.teal[700]),
+        body: const Center(child: Text("Volontario non trovato", style: TextStyle(color: Colors.grey))),
+      );
+    }
+
+    final isInServizio = volontarioCorrente['stato'] == "Disponibile";
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Registra Presenza"), backgroundColor: Colors.teal[700]),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isInServizio ? Icons.check_circle : Icons.access_time,
+              size: 100,
+              color: isInServizio ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              isInServizio ? "In Servizio" : "Fuori Servizio",
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Stato attuale: ${volontarioCorrente['stato']}",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: 200,
+              height: 60,
+              child: ElevatedButton(
+                onPressed: () => _registraPresenza(volontarioCorrente, isInServizio),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isInServizio ? Colors.red : Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(
+                  isInServizio ? "REGISTRA USCITA" : "REGISTRA ENTRATA",
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _registraPresenza(Map<String, dynamic> volontario, bool isInServizio) async {
+    final now = DateTime.now();
+    final timestamp = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
+
+    if (isInServizio) {
+      // Registrazione uscita
+      showDialog(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text("Conferma Uscita"),
+          content: const Text("Sei sicuro di voler registrare l'uscita dal servizio?"),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  volontario['stato'] = "Non Disponibile";
+                  // Trova e aggiorna l'ultima registrazione di entrata
+                  final ultimaRegistrazione = registrazioniPresenze.lastWhere(
+                    (r) => r['volontario_id'] == volontario['id'] && r['uscita'] == null,
+                    orElse: () => <String, dynamic>{},
+                  );
+                  if (ultimaRegistrazione.isNotEmpty) {
+                    ultimaRegistrazione['uscita'] = timestamp;
+                  }
+                });
+                Navigator.pop(c);
+                _snack("Uscita registrata con successo", color: Colors.green);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("CONFERMA"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Registrazione entrata
+      setState(() {
+        volontario['stato'] = "Disponibile";
+        registrazioniPresenze.add({
+          'volontario_id': volontario['id'],
+          'volontario_nome': volontario['nome'],
+          'entrata': timestamp,
+          'uscita': null,
+        });
+      });
+      _snack("Entrata registrata con successo", color: Colors.green);
+    }
+  }
+
+  Widget _paginaGestionePresenze() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Gestione Presenze"),
+        backgroundColor: Colors.amber[700],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Colors.white),
+            onPressed: () => _esportaPresenzeExcel(),
+          ),
+        ],
+      ),
+      body: registrazioniPresenze.isEmpty
+          ? const Center(child: Text("Nessuna registrazione di presenza", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              itemCount: registrazioniPresenze.length,
+              itemBuilder: (context, i) => Card(
+                margin: const EdgeInsets.all(8),
+                child: ListTile(
+                  leading: const Icon(Icons.person, color: Colors.amber),
+                  title: Text(registrazioniPresenze[i]['volontario_nome']),
+                  subtitle: Text(
+                    "Entrata: ${registrazioniPresenze[i]['entrata']}\nUscita: ${registrazioniPresenze[i]['uscita'] ?? 'In corso'}",
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.redAccent),
+                    onPressed: () => _cancellaRegistrazionePresenza(i),
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
+  void _esportaPresenzeExcel() {
+    if (registrazioniPresenze.isEmpty) {
+      _snack("Nessuna registrazione da esportare");
+      return;
+    }
+
+    String csv = "Volontario;Entrata;Uscita\n";
+    for (var reg in registrazioniPresenze) {
+      csv += "${reg['volontario_nome']};${reg['entrata']};${reg['uscita'] ?? 'In corso'}\n";
+    }
+
+    final bytes = utf8.encode(csv);
+    final blob = html.Blob([bytes], 'text/csv;charset=utf-8;');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "presenze_export.csv")
+      ..click();
+
+    html.Url.revokeObjectUrl(url);
+  }
+
+  void _cancellaRegistrazionePresenza(int index) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text("Cancella Registrazione"),
+        content: const Text("Sei sicuro di voler cancellare questa registrazione?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => registrazioniPresenze.removeAt(index));
+              Navigator.pop(c);
+              _snack("Registrazione cancellata", color: Colors.green);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text("CANCELLA"),
