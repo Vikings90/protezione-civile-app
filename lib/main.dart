@@ -1016,7 +1016,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   if (_isMasterUser)
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
                   _card("SEGNALAZIONI", Icons.report_problem_rounded, Colors.purple[700]!, () => _vaiA(_paginaSegnalazioni())),
-                  _card("P.E.C", Icons.picture_as_pdf, Colors.red[700]!, () => _vaiA(_paginaPEC())),
+                  _card("PIANO EMERGENZA COMUNALE", Icons.picture_as_pdf, Colors.red[700]!, () => _vaiA(_paginaPEC())),
                 ],
               ),
             ),
@@ -1446,7 +1446,7 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogNuovoMezzo(VoidCallback onSave, {Map<String, dynamic>? editMezzo}) {
-    String n = editMezzo?['nome'] ?? "", t = editMezzo?['targa'] ?? "", s = editMezzo?['scadenzaAss'] ?? "", b = editMezzo?['scadenzaBollo'] ?? "";
+    String n = editMezzo?['nome'] ?? "", t = editMezzo?['targa'] ?? "", s = editMezzo?['scadenzaAss'] ?? "", b = editMezzo?['scadenzaRevisione'] ?? "";
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
@@ -1458,7 +1458,7 @@ class _IoSonoVState extends State<IoSonoV> {
               TextField(controller: TextEditingController(text: n), onChanged: (v) => n = v, decoration: const InputDecoration(labelText: "Nome Mezzo/Attrezzatura")),
               TextField(controller: TextEditingController(text: t), onChanged: (v) => t = v, decoration: const InputDecoration(labelText: "Targa")),
               TextField(controller: TextEditingController(text: s), onChanged: (v) => s = v, decoration: const InputDecoration(labelText: "Scadenza Assicurazione")),
-              TextField(controller: TextEditingController(text: b), onChanged: (v) => b = v, decoration: const InputDecoration(labelText: "Scadenza Bollo")),
+              TextField(controller: TextEditingController(text: b), onChanged: (v) => b = v, decoration: const InputDecoration(labelText: "Scadenza Revisione")),
             ],
           ),
         ),
@@ -1468,14 +1468,14 @@ class _IoSonoVState extends State<IoSonoV> {
               if (_usaCloud && _sessionOrgId != null) {
                 try {
                   if (editMezzo == null) {
-                    final nuovoMezzo = {"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": "", "orgId": _sessionOrgId};
+                    final nuovoMezzo = {"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaRevisione": b, "guasto": false, "notaGuasto": "", "orgId": _sessionOrgId};
                     await _db.salvaMezzo(nuovoMezzo, _sessionOrgId!);
                     mezzo.add(nuovoMezzo);
                   } else {
                     editMezzo['nome'] = n;
                     editMezzo['targa'] = t;
                     editMezzo['scadenzaAss'] = s;
-                    editMezzo['scadenzaBollo'] = b;
+                    editMezzo['scadenzaRevisione'] = b;
                     await _db.salvaMezzo(editMezzo, _sessionOrgId!);
                   }
                   setState(() {});
@@ -1487,12 +1487,12 @@ class _IoSonoVState extends State<IoSonoV> {
               } else {
                 setState(() {
                   if (editMezzo == null) {
-                    mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaBollo": b, "guasto": false, "notaGuasto": ""});
+                    mezzo.add({"nome": n, "targa": t, "stato": "Disponibile", "scadenzaAss": s, "scadenzaRevisione": b, "guasto": false, "notaGuasto": ""});
                   } else {
                     editMezzo['nome'] = n;
                     editMezzo['targa'] = t;
                     editMezzo['scadenzaAss'] = s;
-                    editMezzo['scadenzaBollo'] = b;
+                    editMezzo['scadenzaRevisione'] = b;
                   }
                 });
                 onSave();
@@ -1757,7 +1757,7 @@ class _IoSonoVState extends State<IoSonoV> {
   Widget _paginaPEC() {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("P.E.C - Posta Elettronica Certificata"),
+        title: const Text("Piano Emergenza Comunale"),
         backgroundColor: Colors.red[700],
       ),
       body: pecFiles.isEmpty
