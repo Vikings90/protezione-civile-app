@@ -1561,6 +1561,13 @@ class _IoSonoVState extends State<IoSonoV> {
           ),
           actions: [
             IconButton(
+              icon: const Icon(Icons.description),
+              onPressed: () {
+                final articoliSelezionati = filtrati.where((art) => selezionati.contains(filtrati.indexOf(art))).toList();
+                _generaFoglioPrelievo(articoliSelezionati);
+              },
+            ),
+            IconButton(
               icon: const Icon(Icons.download),
               onPressed: () {
                 final articoliSelezionati = filtrati.where((art) => selezionati.contains(filtrati.indexOf(art))).toList();
@@ -1725,6 +1732,66 @@ class _IoSonoVState extends State<IoSonoV> {
       ..click();
     
     // Pulisce
+    html.Url.revokeObjectUrl(url);
+  }
+
+  void _generaFoglioPrelievo(List<Map<String, dynamic>> articoli) {
+    if (articoli.isEmpty) {
+      _snack("Nessun articolo selezionato per il foglio di prelievo");
+      return;
+    }
+
+    final now = DateTime.now();
+    final data = "${now.day}/${now.month}/${now.year}";
+    final ora = "${now.hour}:${now.minute.toString().padLeft(2, '0')}";
+
+    // Genera contenuto RTF compatibile con Word
+    String rtf = r"""{\rtf1\ansi\ansicpg1252\deff0\deflang1040{\fonttbl{\f0\fswiss\fcharset0 Arial;}}
+{\colortbl;\red0\green0\blue0;}
+\viewkind4\uc1\pard\qc\f0\fs24\b\fs28 PROTEZIONE CIVILE COMUNALE DI MENTANA\par
+\pard\qc\b0\fs24\par
+\pard\qc\b FOGLIO DI PRELIEVO MATERIALE\par
+\pard\qc\b0\par
+\pard\ql Data: $data\par
+\pard\ql Ora: $ora\par
+\pard\ql\par
+\b\ul Elenco Materiale Prelievo:\b0\ul0\par
+\par
+""";
+
+    int index = 1;
+    for (var art in articoli) {
+      rtf += r"""${index}. ${art['descrizione']}\par
+   Quantità: ${art['quantita']}\par
+   Categoria: ${art['categoria'] ?? 'N/A'}\par
+\par
+""";
+      index++;
+    }
+
+    rtf += r"""\pard\ql\par
+\pard\ql\par
+\pard\ql\b Note:\b0\par
+\pard\ql\ul\par
+\par
+\par
+\par
+\pard\ql\b0\ul0\par
+\pard\ql\par
+\pard\ql\b Firma Responsabile:\b0\par
+\pard\ql\par
+\pard\ql\b Firma Operatore:\b0\par
+\pard\ql\par
+}""";
+
+    final bytes = utf8.encode(rtf);
+    final blob = html.Blob([bytes], 'application/rtf;charset=utf-8;');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "foglio_prelievo_${now.day}${now.month}${now.year}.rtf")
+      ..click();
+
     html.Url.revokeObjectUrl(url);
   }
 
