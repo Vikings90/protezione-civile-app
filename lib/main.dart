@@ -124,6 +124,7 @@ class _IoSonoVState extends State<IoSonoV> {
     final listaVolontari = await _db.caricaVolontari(orgId);
     final listaMezzi = await _db.caricaMezzi(orgId);
     final listaMagazzino = await _db.caricaMagazzino(orgId);
+    final listaPresenze = await _db.caricaPresenze(orgId);
 
     organizzazioni
       ..clear()
@@ -139,6 +140,10 @@ class _IoSonoVState extends State<IoSonoV> {
     magazzino = listaMagazzino.map((m) {
       m['orgId'] = orgId;
       return m;
+    }).toList();
+    registrazioniPresenze = listaPresenze.map((p) {
+      p['orgId'] = orgId;
+      return p;
     }).toList();
 
     // Carica permessi granulari per tutti i volontari
@@ -2038,15 +2043,26 @@ class _IoSonoVState extends State<IoSonoV> {
     final now = DateTime.now();
     final timestamp = "${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}";
 
+    final nuovaRegistrazione = {
+      'volontario_email': volontario['email'],
+      'volontario_nome': volontario['nome'],
+      'giorno': "${now.day}/${now.month}/${now.year}",
+      'entrata': timestamp,
+      'uscita': null,
+    };
+
+    if (_usaCloud && _sessionOrgId != null) {
+      try {
+        await _db.salvaRegistrazionePresenza(nuovaRegistrazione, _sessionOrgId!);
+      } catch (e) {
+        _snack("Errore salvataggio presenza: $e");
+        return;
+      }
+    }
+
     setState(() {
       volontario['stato'] = "Disponibile";
-      registrazioniPresenze.add({
-        'volontario_email': volontario['email'],
-        'volontario_nome': volontario['nome'],
-        'giorno': "${now.day}/${now.month}/${now.year}",
-        'entrata': timestamp,
-        'uscita': null,
-      });
+      registrazioniPresenze.add(nuovaRegistrazione);
     });
     _snack("Entrata registrata con successo", color: Colors.green);
   }
@@ -2068,17 +2084,28 @@ class _IoSonoVState extends State<IoSonoV> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              // Trova e aggiorna l'ultima registrazione di entrata
+              final ultimaRegistrazione = registrazioniPresenze.lastWhere(
+                (r) => r['volontario_email'] == volontario['email'] && r['uscita'] == null,
+                orElse: () => <String, dynamic>{},
+              );
+              
+              if (ultimaRegistrazione.isNotEmpty) {
+                ultimaRegistrazione['uscita'] = timestamp;
+                
+                if (_usaCloud && ultimaRegistrazione['id'] != null) {
+                  try {
+                    await _db.salvaRegistrazionePresenza(ultimaRegistrazione, _sessionOrgId!);
+                  } catch (e) {
+                    _snack("Errore aggiornamento presenza: $e");
+                    return;
+                  }
+                }
+              }
+
               setState(() {
                 volontario['stato'] = "Non Disponibile";
-                // Trova e aggiorna l'ultima registrazione di entrata
-                final ultimaRegistrazione = registrazioniPresenze.lastWhere(
-                  (r) => r['volontario_email'] == volontario['email'] && r['uscita'] == null,
-                  orElse: () => <String, dynamic>{},
-                );
-                if (ultimaRegistrazione.isNotEmpty) {
-                  ultimaRegistrazione['uscita'] = timestamp;
-                }
               });
               Navigator.pop(c);
               _snack("Uscita registrata con successo", color: Colors.green);
@@ -2147,7 +2174,9 @@ class _IoSonoVState extends State<IoSonoV> {
     html.Url.revokeObjectUrl(url);
   }
 
-  void _cancellaRegistrazionePresenza(int index) {
+  void _cancellaRegistrazionePresenza(int index) async {
+    final registrazione = registrazioniPresenze[index];
+    
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
@@ -2156,7 +2185,16 @@ class _IoSonoVState extends State<IoSonoV> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              if (_usaCloud && registrazione['id'] != null) {
+                try {
+                  await _db.eliminaRegistrazionePresenza(registrazione['id']);
+                } catch (e) {
+                  _snack("Errore eliminazione presenza: $e");
+                  return;
+                }
+              }
+              
               setState(() => registrazioniPresenze.removeAt(index));
               Navigator.pop(c);
               _snack("Registrazione cancellata", color: Colors.green);

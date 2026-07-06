@@ -496,4 +496,42 @@ class SupabaseService {
   Future<void> eliminaPermessiSezione(String volontarioId) async {
     await client.from('permessi_sezione').delete().eq('volontario_id', volontarioId);
   }
+
+  Future<List<Map<String, dynamic>>> caricaPresenze(String orgId) async {
+    final rows = await client.from('presenze').select().eq('org_id', orgId).order('entrata', ascending: false);
+    return (rows as List).map((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      return {
+        'id': m['id'],
+        'volontario_email': m['volontario_email'],
+        'volontario_nome': m['volontario_nome'],
+        'giorno': m['giorno'],
+        'entrata': m['entrata'],
+        'uscita': m['uscita'],
+        'orgId': m['org_id'],
+      };
+    }).toList();
+  }
+
+  Future<void> salvaRegistrazionePresenza(Map<String, dynamic> registrazione, String orgId) async {
+    final payload = {
+      'org_id': orgId,
+      'volontario_email': registrazione['volontario_email'],
+      'volontario_nome': registrazione['volontario_nome'],
+      'giorno': registrazione['giorno'],
+      'entrata': registrazione['entrata'],
+      'uscita': registrazione['uscita'],
+    };
+
+    if (registrazione['id'] != null) {
+      await client.from('presenze').update(payload).eq('id', registrazione['id']);
+    } else {
+      final row = await client.from('presenze').insert(payload).select().single();
+      registrazione['id'] = row['id'];
+    }
+  }
+
+  Future<void> eliminaRegistrazionePresenza(String id) async {
+    await client.from('presenze').delete().eq('id', id);
+  }
 }
