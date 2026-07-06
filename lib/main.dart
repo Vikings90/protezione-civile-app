@@ -1017,7 +1017,7 @@ class _IoSonoVState extends State<IoSonoV> {
                     _card("INVITI", Icons.folder_shared_rounded, Colors.indigo[700]!, () => _vaiA(_paginaCartellaInviti())),
                   _card("VOLONTARI", Icons.people_alt_rounded, Colors.blue[700]!, () => _vaiA(_paginaVolontari())),
                   _card("MEZZI E ATTREZZATURE", Icons.local_shipping_rounded, Colors.orange[800]!, () => _vaiA(_paginaMezzi())),
-                  _card("MAGAZZINO", Icons.inventory, Colors.brown[700]!, () => _vaiA(_paginaMagazzino())),
+                  _card("MAGAZZINO", Icons.inventory, Colors.amber[600]!, () => _vaiA(_paginaMagazzino())),
                   _card("SALA RADIO", Icons.settings_input_antenna, Colors.green[700]!, () => _vaiA(_paginaSalaRadio())),
                   if (_isMasterUser)
                     _card("ARCHIVIO", Icons.inventory_2_rounded, Colors.blueGrey[700]!, () => _vaiA(_paginaArchivioInterventi())),
@@ -1558,7 +1558,7 @@ class _IoSonoVState extends State<IoSonoV> {
       var filtrati = magazzino.where((m) => m['descrizione'].toLowerCase().contains(query.toLowerCase())).toList();
       return Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.brown[700],
+          backgroundColor: Colors.amber[600],
           title: TextField(
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(hintText: "Cerca articolo...", hintStyle: TextStyle(color: Colors.white70), border: InputBorder.none),
@@ -1566,14 +1566,14 @@ class _IoSonoVState extends State<IoSonoV> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.description),
+              icon: const Icon(Icons.description, color: Colors.white),
               onPressed: () {
                 final articoliSelezionati = filtrati.where((art) => selezionati.contains(filtrati.indexOf(art))).toList();
                 _generaFoglioPrelievo(articoliSelezionati);
               },
             ),
             IconButton(
-              icon: const Icon(Icons.download),
+              icon: const Icon(Icons.download, color: Colors.white),
               onPressed: () {
                 final articoliSelezionati = filtrati.where((art) => selezionati.contains(filtrati.indexOf(art))).toList();
                 _esportaMagazzinoExcel(articoliSelezionati);
@@ -1635,7 +1635,7 @@ class _IoSonoVState extends State<IoSonoV> {
             ),
           ],
         ),
-        floatingActionButton: _haPermessoSezione('magazzino') ? FloatingActionButton(backgroundColor: Colors.brown[700], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
+        floatingActionButton: _haPermessoSezione('magazzino') ? FloatingActionButton(backgroundColor: Colors.amber[600], child: const Icon(Icons.add), onPressed: () => _dialogNuovoArticolo(() => setStateMag(() {}))) : null,
       );
     });
   }
