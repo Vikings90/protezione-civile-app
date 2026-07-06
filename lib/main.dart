@@ -1594,7 +1594,7 @@ class _IoSonoVState extends State<IoSonoV> {
                       },
                     ),
                     title: Text(filtrati[i]['descrizione']),
-                    subtitle: Text("Quantità: ${filtrati[i]['quantita']}"),
+                    subtitle: Text("Quantità: ${filtrati[i]['quantita']}\nCategoria: ${filtrati[i]['categoria'] ?? 'N/A'}"),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1630,6 +1630,9 @@ class _IoSonoVState extends State<IoSonoV> {
 
   void _dialogNuovoArticolo(VoidCallback onSave, {Map<String, dynamic>? editArticolo}) {
     String d = editArticolo?['descrizione'] ?? "", q = editArticolo?['quantita']?.toString() ?? "0";
+    String categoria = editArticolo?['categoria'] ?? "elettricità";
+    final categorie = ["elettricità", "idraulica", "attrezzature", "ferramenta", "aib"];
+    
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
@@ -1640,6 +1643,21 @@ class _IoSonoVState extends State<IoSonoV> {
             children: [
               TextField(controller: TextEditingController(text: d), onChanged: (v) => d = v, decoration: const InputDecoration(labelText: "Descrizione")),
               TextField(controller: TextEditingController(text: q), onChanged: (v) => q = v, decoration: const InputDecoration(labelText: "Quantità"), keyboardType: TextInputType.number),
+              DropdownButtonFormField<String>(
+                value: categoria,
+                decoration: const InputDecoration(labelText: "Categoria"),
+                items: categorie.map((String cat) {
+                  return DropdownMenuItem<String>(
+                    value: cat,
+                    child: Text(cat),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    categoria = newValue;
+                  }
+                },
+              ),
             ],
           ),
         ),
@@ -1649,12 +1667,13 @@ class _IoSonoVState extends State<IoSonoV> {
               if (_usaCloud && _sessionOrgId != null) {
                 try {
                   if (editArticolo == null) {
-                    final nuovoArticolo = {"descrizione": d, "quantita": int.tryParse(q) ?? 0, "orgId": _sessionOrgId};
+                    final nuovoArticolo = {"descrizione": d, "quantita": int.tryParse(q) ?? 0, "categoria": categoria, "orgId": _sessionOrgId};
                     await _db.salvaArticoloMagazzino(nuovoArticolo, _sessionOrgId!);
                     magazzino.add(nuovoArticolo);
                   } else {
                     editArticolo['descrizione'] = d;
                     editArticolo['quantita'] = int.tryParse(q) ?? 0;
+                    editArticolo['categoria'] = categoria;
                     await _db.salvaArticoloMagazzino(editArticolo, _sessionOrgId!);
                   }
                   setState(() {});
@@ -1666,10 +1685,11 @@ class _IoSonoVState extends State<IoSonoV> {
               } else {
                 setState(() {
                   if (editArticolo == null) {
-                    magazzino.add({"descrizione": d, "quantita": int.tryParse(q) ?? 0});
+                    magazzino.add({"descrizione": d, "quantita": int.tryParse(q) ?? 0, "categoria": categoria});
                   } else {
                     editArticolo['descrizione'] = d;
                     editArticolo['quantita'] = int.tryParse(q) ?? 0;
+                    editArticolo['categoria'] = categoria;
                   }
                 });
                 onSave();
@@ -1689,9 +1709,9 @@ class _IoSonoVState extends State<IoSonoV> {
       return;
     }
     
-    String csv = "Descrizione;Quantità\n";
+    String csv = "Descrizione;Quantità;Categoria\n";
     for (var art in articoli) {
-      csv += "${art['descrizione']};${art['quantita']}\n";
+      csv += "${art['descrizione']};${art['quantita']};${art['categoria'] ?? 'N/A'}\n";
     }
     
     // Crea un file temporaneo
