@@ -1862,10 +1862,10 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   Widget _paginaPresenza() {
-    // Trova il volontario corrente
-    final userId = _db.client.auth.currentUser?.id;
+    // Trova il volontario corrente usando l'email
+    final userEmail = _db.client.auth.currentUser?.email;
     final volontarioCorrente = volontari.firstWhere(
-      (v) => v['id'] == userId,
+      (v) => v['email'] == userEmail,
       orElse: () => <String, dynamic>{},
     );
 
@@ -1954,7 +1954,7 @@ class _IoSonoVState extends State<IoSonoV> {
     setState(() {
       volontario['stato'] = "Disponibile";
       registrazioniPresenze.add({
-        'volontario_id': volontario['id'],
+        'volontario_email': volontario['email'],
         'volontario_nome': volontario['nome'],
         'giorno': "${now.day}/${now.month}/${now.year}",
         'entrata': timestamp,
@@ -1986,7 +1986,7 @@ class _IoSonoVState extends State<IoSonoV> {
                 volontario['stato'] = "Non Disponibile";
                 // Trova e aggiorna l'ultima registrazione di entrata
                 final ultimaRegistrazione = registrazioniPresenze.lastWhere(
-                  (r) => r['volontario_id'] == volontario['id'] && r['uscita'] == null,
+                  (r) => r['volontario_email'] == volontario['email'] && r['uscita'] == null,
                   orElse: () => <String, dynamic>{},
                 );
                 if (ultimaRegistrazione.isNotEmpty) {
