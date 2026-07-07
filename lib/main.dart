@@ -2054,6 +2054,9 @@ class _IoSonoVState extends State<IoSonoV> {
     if (_usaCloud && _sessionOrgId != null) {
       try {
         await _db.salvaRegistrazionePresenza(nuovaRegistrazione, _sessionOrgId!);
+        // Aggiorna lo stato del volontario nel database
+        volontario['stato'] = "Disponibile";
+        await _db.salvaVolontare(volontario);
       } catch (e) {
         _snack("Errore salvataggio presenza: $e");
         return;
@@ -2097,6 +2100,9 @@ class _IoSonoVState extends State<IoSonoV> {
                 if (_usaCloud && ultimaRegistrazione['id'] != null) {
                   try {
                     await _db.salvaRegistrazionePresenza(ultimaRegistrazione, _sessionOrgId!);
+                    // Aggiorna lo stato del volontario nel database
+                    volontario['stato'] = "Non Disponibile";
+                    await _db.salvaVolontare(volontario);
                   } catch (e) {
                     _snack("Errore aggiornamento presenza: $e");
                     return;
