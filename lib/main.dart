@@ -125,6 +125,7 @@ class _IoSonoVState extends State<IoSonoV> {
     final listaMezzi = await _db.caricaMezzi(orgId);
     final listaMagazzino = await _db.caricaMagazzino(orgId);
     final listaPresenze = await _db.caricaPresenze(orgId);
+    final listaInterventi = await _db.caricaInterventi(orgId);
 
     organizzazioni
       ..clear()
@@ -144,6 +145,10 @@ class _IoSonoVState extends State<IoSonoV> {
     registrazioniPresenze = listaPresenze.map((p) {
       p['orgId'] = orgId;
       return p;
+    }).toList();
+    interventi = listaInterventi.map((i) {
+      i['orgId'] = orgId;
+      return i;
     }).toList();
 
     // Carica permessi granulari per tutti i volontari
@@ -2238,8 +2243,8 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogNuovoIntervento() {
-    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": [], "stato": "sala_radio"};
-    String loc = "", tipo = "Incendio";
+    Map<String, dynamic> nuovo = {"titolo": "", "descrizione": "", "segnalato_da": "", "inizio": "", "fine": null, "foto": null, "mezzi": [], "volontari_impegnati": [], "stato": "sala_radio"};
+    String loc = "", tipo = "Incendio", descrizione = "", segnalatoDa = "";
     List<String> mezziSel = [];
     List<String> volSel = [];
     var mezziDisp = mezzo.where((m) => !m['guasto'] && m['stato'] == "Disponibile").toList();
@@ -2265,15 +2270,19 @@ class _IoSonoVState extends State<IoSonoV> {
                 const Text("Volontari:"),
                 Wrap(children: volDisp.map((v) => FilterChip(label: Text(v['nome']), selected: volSel.contains(v['nome']), onSelected: (s) => setD(() => s ? volSel.add(v['nome']) : volSel.remove(v['nome'])))).toList()),
                 TextField(onChanged: (v) => loc = v, decoration: const InputDecoration(labelText: "Località")),
+                TextField(onChanged: (v) => descrizione = v, maxLines: 3, decoration: const InputDecoration(labelText: "Descrizione")),
+                TextField(onChanged: (v) => segnalatoDa = v, decoration: const InputDecoration(labelText: "Segnalato da")),
                 TextButton.icon(onPressed: () => _scattaFoto(nuovo, setD), icon: const Icon(Icons.camera_alt), label: const Text("FOTO")),
               ],
             ),
           ),
           actions: [
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   nuovo['titolo'] = "[$tipo] $loc";
+                  nuovo['descrizione'] = descrizione;
+                  nuovo['segnalato_da'] = segnalatoDa;
                   nuovo['inizio'] = "${DateTime.now().hour}:${DateTime.now().minute}";
                   nuovo['mezzi'] = mezziSel;
                   nuovo['volontari_impegnati'] = volSel;
@@ -2282,6 +2291,16 @@ class _IoSonoVState extends State<IoSonoV> {
                   for (var v in volSel) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "In Intervento";
                   interventi.insert(0, nuovo);
                 });
+                
+                if (_usaCloud && _sessionOrgId != null) {
+                  try {
+                    await _db.salvaIntervento(nuovo, _sessionOrgId!);
+                  } catch (e) {
+                    _snack("Errore salvataggio intervento: $e");
+                    return;
+                  }
+                }
+                
                 Navigator.pop(c);
               },
               child: const Text("AVVIA"),
@@ -2299,6 +2318,7 @@ class _IoSonoVState extends State<IoSonoV> {
         title: const Text("Archivio Generale"),
         backgroundColor: Colors.blueGrey[700],
         actions: [
+          IconButton(icon: const Icon(Icons.description, color: Colors.white), onPressed: () => _generaRapportinoIntervento()),
           IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: _esportaSelezionati),
           if (selezionatiInterventi.isNotEmpty)
             IconButton(icon: const Icon(Icons.delete, color: Colors.white), onPressed: () => _cancellaInterventiSelezionati()),
@@ -2359,6 +2379,69 @@ class _IoSonoVState extends State<IoSonoV> {
               ],
             ),
     );
+  }
+
+  void _generaRapportinoIntervento() {
+    var interventiArchiviati = interventi.where((i) => i['stato'] == "archiviato").toList();
+    if (interventiArchiviati.isEmpty) {
+      _snack("Nessun intervento archiviato per il rapportino");
+      return;
+    }
+
+    final now = DateTime.now();
+    final data = "${now.day}/${now.month}/${now.year}";
+    final ora = "${now.hour}:${now.minute.toString().padLeft(2, '0')}";
+
+    String rtf = r"""{\rtf1\ansi\ansicpg1252\deff0\deflang1040{\fonttbl{\f0\fswiss\fcharset0 Arial;}}
+{\colortbl;\red0\green0\blue0;}
+\viewkind4\uc1\pard\qc\f0\fs24\b\fs28 PROTEZIONE CIVILE COMUNALE\par
+\pard\qc\b0\fs24\par
+\pard\qc\b RAPPORTINO INTERVENTO\par
+\pard\qc\b0\par
+\pard\ql Data: $data\par
+\pard\ql Ora: $ora\par
+\pard\ql\par
+\b\ul Elenco Interventi:\b0\ul0\par
+\par
+""";
+
+    int index = 1;
+    for (var inter in interventiArchiviati) {
+      rtf += r"""${index}. ${inter['titolo']}\par
+   Descrizione: ${inter['descrizione'] ?? 'N/A'}\par
+   Segnalato da: ${inter['segnalato_da'] ?? 'N/A'}\par
+   Inizio: ${inter['inizio']}\par
+   Fine: ${inter['fine'] ?? 'In corso'}\par
+   Mezzi: ${inter['mezzi'].join(", ")}\par
+   Volontari: ${inter['volontari_impegnati'].join(", ")}\par
+\par
+""";
+      index++;
+    }
+
+    rtf += r"""\pard\ql\par
+\pard\ql\b Note:\b0\par
+\pard\ql\ul\par
+\par
+\par
+\par
+\pard\ql\b0\ul0\par
+\pard\ql\par
+\pard\ql\b Firma Responsabile:\b0\par
+\pard\ql\par
+\pard\ql\b Firma Operatore:\b0\par
+\pard\ql\par
+}""";
+
+    final bytes = utf8.encode(rtf);
+    final blob = html.Blob([bytes], 'application/rtf;charset=utf-8;');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "rapportino_intervento_${now.day}${now.month}${now.year}.rtf")
+      ..click();
+
+    html.Url.revokeObjectUrl(url);
   }
 
   void _dialogDettaglioIntervento(Map<String, dynamic> inter, VoidCallback refresh) {

@@ -534,4 +534,50 @@ class SupabaseService {
   Future<void> eliminaRegistrazionePresenza(String id) async {
     await client.from('presenze').delete().eq('id', id);
   }
+
+  Future<List<Map<String, dynamic>>> caricaInterventi(String orgId) async {
+    final rows = await client.from('interventi').select().eq('org_id', orgId).order('created_at', ascending: false);
+    return (rows as List).map((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      return {
+        'id': m['id'],
+        'titolo': m['titolo'],
+        'descrizione': m['descrizione'] ?? '',
+        'segnalato_da': m['segnalato_da'] ?? '',
+        'inizio': m['inizio'],
+        'fine': m['fine'],
+        'foto': m['foto'],
+        'mezzi': List<String>.from(m['mezzi'] ?? []),
+        'volontari_impegnati': List<String>.from(m['volontari_impegnati'] ?? []),
+        'stato': m['stato'] ?? 'sala_radio',
+        'orgId': m['org_id'],
+      };
+    }).toList();
+  }
+
+  Future<void> salvaIntervento(Map<String, dynamic> intervento, String orgId) async {
+    final payload = {
+      'org_id': orgId,
+      'titolo': intervento['titolo'],
+      'descrizione': intervento['descrizione'] ?? '',
+      'segnalato_da': intervento['segnalato_da'] ?? '',
+      'inizio': intervento['inizio'],
+      'fine': intervento['fine'],
+      'foto': intervento['foto'],
+      'mezzi': intervento['mezzi'] ?? [],
+      'volontari_impegnati': intervento['volontari_impegnati'] ?? [],
+      'stato': intervento['stato'] ?? 'sala_radio',
+    };
+
+    if (intervento['id'] != null) {
+      await client.from('interventi').update(payload).eq('id', intervento['id']);
+    } else {
+      final row = await client.from('interventi').insert(payload).select().single();
+      intervento['id'] = row['id'];
+    }
+  }
+
+  Future<void> eliminaIntervento(String id) async {
+    await client.from('interventi').delete().eq('id', id);
+  }
 }
