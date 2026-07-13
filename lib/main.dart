@@ -2407,13 +2407,16 @@ class _IoSonoVState extends State<IoSonoV> {
 
     int index = 1;
     for (var inter in interventiArchiviati) {
-      rtf += r"""${index}. ${inter['titolo']}\par
+      final mezziList = inter['mezzi'] is List ? (inter['mezzi'] as List).join(", ") : 'Nessuno';
+      final volList = inter['volontari_impegnati'] is List ? (inter['volontari_impegnati'] as List).join(", ") : 'Nessuno';
+      
+      rtf += r"""${index}. ${inter['titolo'] ?? 'Senza titolo'}\par
    Descrizione: ${inter['descrizione'] ?? 'N/A'}\par
    Segnalato da: ${inter['segnalato_da'] ?? 'N/A'}\par
-   Inizio: ${inter['inizio']}\par
+   Inizio: ${inter['inizio'] ?? 'N/A'}\par
    Fine: ${inter['fine'] ?? 'In corso'}\par
-   Mezzi: ${inter['mezzi'].join(", ")}\par
-   Volontari: ${inter['volontari_impegnati'].join(", ")}\par
+   Mezzi: $mezziList\par
+   Volontari: $volList\par
 \par
 """;
       index++;
