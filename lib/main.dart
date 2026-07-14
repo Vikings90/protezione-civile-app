@@ -2392,18 +2392,19 @@ class _IoSonoVState extends State<IoSonoV> {
     final data = "${now.day}/${now.month}/${now.year}";
     final ora = "${now.hour}:${now.minute.toString().padLeft(2, '0')}";
 
-    // Costruisci la stringa RTF usando concatenazione normale per l'interpolazione
-    String rtf = "{\\rtf1\\ansi\\ansicpg1252\\deff0\\deflang1040{\\fonttbl{\\f0\\fswiss\\fcharset0 Arial;}}\n";
-    rtf += "{\\colortbl;\\red0\\green0\\blue0;}\n";
-    rtf += "\\viewkind4\\uc1\\pard\\qc\\f0\\fs24\\b\\fs28 PROTEZIONE CIVILE COMUNALE\\par\n";
-    rtf += "\\pard\\qc\\b0\\fs24\\par\n";
-    rtf += "\\pard\\qc\\b RAPPORTINO INTERVENTO\\par\n";
-    rtf += "\\pard\\qc\\b0\\par\n";
-    rtf += "\\pard\\ql Data: $data\\par\n";
-    rtf += "\\pard\\ql Ora: $ora\\par\n";
-    rtf += "\\pard\\ql\\par\n";
-    rtf += "\\b\\ul Elenco Interventi:\\b0\\ul0\\par\n";
-    rtf += "\\par\n";
+    // Costruisci la stringa RTF usando stringhe raw per la struttura e interpolazione per i dati
+    String rtf = r"""{\rtf1\ansi\ansicpg1252\deff0\deflang1040{\fonttbl{\f0\fswiss\fcharset0 Arial;}}
+{\colortbl;\red0\green0\blue0;}
+\viewkind4\uc1\pard\qc\f0\fs24\b\fs28 PROTEZIONE CIVILE COMUNALE\par
+\pard\qc\b0\fs24\par
+\pard\qc\b RAPPORTINO INTERVENTO\par
+\pard\qc\b0\par
+\pard\ql Data: """ + data + r"""\par
+\pard\ql Ora: """ + ora + r"""\par
+\pard\ql\par
+\b\ul Elenco Interventi:\b0\ul0\par
+\par
+""";
 
     int index = 1;
     for (var inter in interventiArchiviati) {
@@ -2415,30 +2416,31 @@ class _IoSonoVState extends State<IoSonoV> {
       final inizio = inter['inizio'] ?? 'N/A';
       final fine = inter['fine'] ?? 'In corso';
       
-      rtf += "$index. $titolo\\par\n";
-      rtf += "   Descrizione: $descrizione\\par\n";
-      rtf += "   Segnalato da: $segnalatoDa\\par\n";
-      rtf += "   Inizio: $inizio\\par\n";
-      rtf += "   Fine: $fine\\par\n";
-      rtf += "   Mezzi: $mezziList\\par\n";
-      rtf += "   Volontari: $volList\\par\n";
-      rtf += "\\par\n";
+      rtf += r"""""" + index.toString() + r""". """ + titolo + r"""\par
+   Descrizione: """ + descrizione + r"""\par
+   Segnalato da: """ + segnalatoDa + r"""\par
+   Inizio: """ + inizio + r"""\par
+   Fine: """ + fine + r"""\par
+   Mezzi: """ + mezziList + r"""\par
+   Volontari: """ + volList + r"""\par
+\par
+""";
       index++;
     }
 
-    rtf += "\\pard\\ql\\par\n";
-    rtf += "\\pard\\ql\\b Note:\\b0\\par\n";
-    rtf += "\\pard\\ql\\ul\\par\n";
-    rtf += "\\par\n";
-    rtf += "\\par\n";
-    rtf += "\\par\n";
-    rtf += "\\pard\\ql\\b0\\ul0\\par\n";
-    rtf += "\\pard\\ql\\par\n";
-    rtf += "\\pard\\ql\\b Firma Responsabile:\\b0\\par\n";
-    rtf += "\\pard\\ql\\par\n";
-    rtf += "\\pard\\ql\\b Firma Operatore:\\b0\\par\n";
-    rtf += "\\pard\\ql\\par\n";
-    rtf += "}";
+    rtf += r"""\pard\ql\par
+\pard\ql\b Note:\b0\par
+\pard\ql\ul\par
+\par
+\par
+\par
+\pard\ql\b0\ul0\par
+\pard\ql\par
+\pard\ql\b Firma Responsabile:\b0\par
+\pard\ql\par
+\pard\ql\b Firma Operatore:\b0\par
+\pard\ql\par
+}""";
 
     final bytes = utf8.encode(rtf);
     final blob = html.Blob([bytes], 'application/rtf;charset=utf-8;');
