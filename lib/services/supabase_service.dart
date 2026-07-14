@@ -580,4 +580,38 @@ class SupabaseService {
   Future<void> eliminaIntervento(String id) async {
     await client.from('interventi').delete().eq('id', id);
   }
+
+  Future<List<Map<String, dynamic>>> caricaSicurezzaGuida(String orgId) async {
+    final rows = await client.from('sicurezza_guida').select().eq('org_id', orgId).order('data_test', ascending: false);
+    return (rows as List).map((r) {
+      final m = Map<String, dynamic>.from(r as Map);
+      return {
+        'id': m['id'],
+        'volontario_nome': m['volontario_nome'],
+        'volontario_email': m['volontario_email'],
+        'data_test': m['data_test'],
+        'stato_servizio': m['stato_servizio'],
+        'note': m['note'] ?? '',
+        'orgId': m['org_id'],
+      };
+    }).toList();
+  }
+
+  Future<void> salvaTestSicurezzaGuida(Map<String, dynamic> test, String orgId) async {
+    final payload = {
+      'org_id': orgId,
+      'volontario_nome': test['volontario_nome'],
+      'volontario_email': test['volontario_email'],
+      'data_test': DateTime.now().toIso8601String(),
+      'stato_servizio': 'in_servizio',
+      'note': test['note'] ?? '',
+    };
+
+    final row = await client.from('sicurezza_guida').insert(payload).select().single();
+    test['id'] = row['id'];
+  }
+
+  Future<void> aggiornaStatoTestSicurezza(String testId, String stato) async {
+    await client.from('sicurezza_guida').update({'stato_servizio': stato}).eq('id', testId);
+  }
 }

@@ -54,6 +54,7 @@ class _IoSonoVState extends State<IoSonoV> {
   List<Map<String, String>> segnalazioni = [];
   List<Map<String, dynamic>> pecFiles = [];
   List<Map<String, dynamic>> registrazioniPresenze = [];
+  List<Map<String, dynamic>> sicurezzaGuida = [];
 
   List<int> selezionatiInterventi = [];
   List<int> listaSegnalazioniSelezionate = [];
@@ -126,6 +127,7 @@ class _IoSonoVState extends State<IoSonoV> {
     final listaMagazzino = await _db.caricaMagazzino(orgId);
     final listaPresenze = await _db.caricaPresenze(orgId);
     final listaInterventi = await _db.caricaInterventi(orgId);
+    final listaSicurezzaGuida = await _db.caricaSicurezzaGuida(orgId);
 
     organizzazioni
       ..clear()
@@ -149,6 +151,10 @@ class _IoSonoVState extends State<IoSonoV> {
     interventi = listaInterventi.map((i) {
       i['orgId'] = orgId;
       return i;
+    }).toList();
+    sicurezzaGuida = listaSicurezzaGuida.map((s) {
+      s['orgId'] = orgId;
+      return s;
     }).toList();
 
     // Carica permessi granulari per tutti i volontari
@@ -1029,6 +1035,7 @@ class _IoSonoVState extends State<IoSonoV> {
                   _card("SEGNALAZIONI", Icons.report_problem_rounded, Colors.purple[700]!, () => _vaiA(_paginaSegnalazioni())),
                   _card("PIANO EMERGENZA COMUNALE", Icons.picture_as_pdf, Colors.red[700]!, () => _vaiA(_paginaPEC())),
                   _card("PRESENZA", Icons.how_to_reg, Colors.teal[700]!, () => _vaiA(_paginaPresenza())),
+                  _card("GUIDA PROTETTA", Icons.drive_eta_rounded, Colors.deepOrange[700]!, () => _vaiA(_paginaGuidaProtetta())),
                   if (_isMasterUser)
                     _card("GESTIONE PRESENZE", Icons.assignment, Colors.amber[700]!, () => _vaiA(_paginaGestionePresenze())),
                 ],
@@ -2112,6 +2119,19 @@ class _IoSonoVState extends State<IoSonoV> {
                     // Aggiorna lo stato del volontario nel database
                     volontario['stato'] = "Non Disponibile";
                     await _db.salvaVolontare(volontario);
+                    
+                    // Resetta il flag test sicurezza quando il volontario esce dal servizio
+                    final testAttivo = sicurezzaGuida.firstWhere(
+                      (s) => s['volontario_nome'] == volontario['nome'] && s['stato_servizio'] == 'in_servizio',
+                      orElse: () => <String, dynamic>{},
+                    );
+                    
+                    if (testAttivo.isNotEmpty && testAttivo['id'] != null) {
+                      await _db.aggiornaStatoTestSicurezza(testAttivo['id'], 'uscito');
+                      setState(() {
+                        testAttivo['stato_servizio'] = 'uscito';
+                      });
+                    }
                   } catch (e) {
                     _snack("Errore aggiornamento presenza: $e");
                     return;
@@ -2455,6 +2475,154 @@ class _IoSonoVState extends State<IoSonoV> {
       ..click();
 
     html.Url.revokeObjectUrl(url);
+  }
+
+  Widget _paginaGuidaProtetta() {
+    final volontariInServizio = volontari.where((v) => v['stato'] == 'In Intervento').toList();
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Guida Protetta"),
+        backgroundColor: Colors.deepOrange[700],
+        actions: [
+          if (_isMasterUser)
+            IconButton(icon: const Icon(Icons.folder_open, color: Colors.white), onPressed: () => _vaiA(_paginaArchivioSicurezzaGuida())),
+        ],
+      ),
+      body: volontariInServizio.isEmpty
+          ? const Center(child: Text("Nessun volontario in servizio", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              itemCount: volontariInServizio.length,
+              itemBuilder: (context, index) {
+                final vol = volontariInServizio[index];
+                final haFattoTest = sicurezzaGuida.any((s) => 
+                  s['volontario_nome'] == vol['nome'] && 
+                  s['stato_servizio'] == 'in_servizio'
+                );
+                
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    title: Text(vol['nome']),
+                    subtitle: Text("Stato: ${vol['stato']}"),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (haFattoTest)
+                          const Icon(Icons.check_circle, color: Colors.green),
+                        ElevatedButton(
+                          onPressed: () => _flaggaTestSicurezza(vol),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: haFattoTest ? Colors.green : Colors.blue,
+                          ),
+                          child: Text(haFattoTest ? "Test Effettuato" : "Effettua Test"),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  void _flaggaTestSicurezza(Map<String, dynamic> vol) async {
+    final haFattoTest = sicurezzaGuida.any((s) => 
+      s['volontario_nome'] == vol['nome'] && 
+      s['stato_servizio'] == 'in_servizio'
+    );
+    
+    if (haFattoTest) {
+      _snack("Test già effettuato per questo volontario");
+      return;
+    }
+    
+    final test = {
+      'volontario_nome': vol['nome'],
+      'volontario_email': vol['email'],
+      'note': '',
+    };
+    
+    if (_usaCloud && _sessionOrgId != null) {
+      try {
+        await _db.salvaTestSicurezzaGuida(test, _sessionOrgId!);
+        setState(() {
+          sicurezzaGuida.insert(0, test);
+        });
+        _snack("Test sicurezza registrato");
+      } catch (e) {
+        _snack("Errore salvataggio test: $e");
+      }
+    } else {
+      setState(() {
+        sicurezzaGuida.insert(0, test);
+      });
+      _snack("Test sicurezza registrato (locale)");
+    }
+  }
+
+  Widget _paginaArchivioSicurezzaGuida() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Archivio Sicurezza Guida"),
+        backgroundColor: Colors.deepOrange[700],
+        actions: [
+          IconButton(icon: const Icon(Icons.file_download, color: Colors.white), onPressed: _esportaSicurezzaGuidaExcel),
+        ],
+      ),
+      body: sicurezzaGuida.isEmpty
+          ? const Center(child: Text("Archivio vuoto", style: TextStyle(color: Colors.grey)))
+          : ListView.builder(
+              itemCount: sicurezzaGuida.length,
+              itemBuilder: (context, index) {
+                final test = sicurezzaGuida[index];
+                final dataTest = test['data_test'] != null 
+                    ? DateTime.parse(test['data_test']).toLocal().toString().substring(0, 16)
+                    : 'N/A';
+                
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    title: Text(test['volontario_nome']),
+                    subtitle: Text("Data: $dataTest\nStato: ${test['stato_servizio']}\nNote: ${test['note'] ?? 'Nessuna'}"),
+                    trailing: test['stato_servizio'] == 'in_servizio'
+                        ? const Icon(Icons.directions_car, color: Colors.green)
+                        : const Icon(Icons.home, color: Colors.grey),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  void _esportaSicurezzaGuidaExcel() {
+    if (sicurezzaGuida.isEmpty) {
+      _snack("Nessun dato da esportare");
+      return;
+    }
+
+    String csv = "Volontario,Email,Data Test,Stato Servizio,Note\n";
+    for (var test in sicurezzaGuida) {
+      final dataTest = test['data_test'] != null 
+          ? DateTime.parse(test['data_test']).toLocal().toString().substring(0, 16)
+          : 'N/A';
+      final nome = (test['volontario_nome'] ?? '').replaceAll(',', ';');
+      final email = (test['volontario_email'] ?? '').replaceAll(',', ';');
+      final note = (test['note'] ?? '').replaceAll(',', ';');
+      csv += "$nome,$email,$dataTest,${test['stato_servizio']},$note\n";
+    }
+
+    final bytes = utf8.encode(csv);
+    final blob = html.Blob([bytes], 'text/csv;charset=utf-8;');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final now = DateTime.now();
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "sicurezza_guida_${now.day}${now.month}${now.year}.csv")
+      ..click();
+
+    html.Url.revokeObjectUrl(url);
+    _snack("Esportazione completata");
   }
 
   void _dialogDettaglioIntervento(Map<String, dynamic> inter, VoidCallback refresh) {
