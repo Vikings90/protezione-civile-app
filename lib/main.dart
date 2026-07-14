@@ -1755,15 +1755,15 @@ class _IoSonoVState extends State<IoSonoV> {
     final data = "${now.day}/${now.month}/${now.year}";
     final ora = "${now.hour}:${now.minute.toString().padLeft(2, '0')}";
 
-    // Genera contenuto RTF compatibile con Word
+    // Genera contenuto RTF compatibile con Word usando stringhe raw per struttura e concatenazione per dati
     String rtf = r"""{\rtf1\ansi\ansicpg1252\deff0\deflang1040{\fonttbl{\f0\fswiss\fcharset0 Arial;}}
 {\colortbl;\red0\green0\blue0;}
 \viewkind4\uc1\pard\qc\f0\fs24\b\fs28 PROTEZIONE CIVILE COMUNALE DI MENTANA\par
 \pard\qc\b0\fs24\par
 \pard\qc\b FOGLIO DI PRELIEVO MATERIALE\par
 \pard\qc\b0\par
-\pard\ql Data: $data\par
-\pard\ql Ora: $ora\par
+\pard\ql Data: """ + data + r"""\par
+\pard\ql Ora: """ + ora + r"""\par
 \pard\ql\par
 \b\ul Elenco Materiale Prelievo:\b0\ul0\par
 \par
@@ -1771,9 +1771,13 @@ class _IoSonoVState extends State<IoSonoV> {
 
     int index = 1;
     for (var art in articoli) {
-      rtf += r"""${index}. ${art['descrizione']}\par
-   Quantità: ${art['quantita']}\par
-   Categoria: ${art['categoria'] ?? 'N/A'}\par
+      final descrizione = art['descrizione'] ?? 'N/A';
+      final quantita = art['quantita']?.toString() ?? '0';
+      final categoria = art['categoria'] ?? 'N/A';
+      
+      rtf += r"""""" + index.toString() + r""". """ + descrizione + r"""\par
+   Quantità: """ + quantita + r"""\par
+   Categoria: """ + categoria + r"""\par
 \par
 """;
       index++;
