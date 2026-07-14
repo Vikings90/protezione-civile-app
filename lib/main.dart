@@ -2478,7 +2478,11 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   Widget _paginaGuidaProtetta() {
-    final volontariInServizio = volontari.where((v) => v['stato'] == 'In Intervento').toList();
+    final volontariInServizio = volontari.where((v) => 
+      v['stato'] == 'In Intervento' || 
+      v['stato'] == 'In Servizio' ||
+      v['stato'] == 'Disponibile'
+    ).toList();
     
     return Scaffold(
       appBar: AppBar(
