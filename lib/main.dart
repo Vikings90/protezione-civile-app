@@ -2254,7 +2254,7 @@ class _IoSonoVState extends State<IoSonoV> {
                 margin: const EdgeInsets.all(8),
                 child: ListTile(
                   title: Text(interventiInCorso[i]['titolo']),
-                  subtitle: Text("Inizio: ${interventiInCorso[i]['inizio']}\nMezzi: ${interventiInCorso[i]['mezzi'].join(", ")}\nVolontari: ${interventiInCorso[i]['volontari_impegnati'].join(", ")}"),
+                  subtitle: Text("Inizio: ${interventiInCorso[i]['inizio']}\nDescrizione: ${interventiInCorso[i]['descrizione'] ?? 'N/A'}\nMezzi: ${interventiInCorso[i]['mezzi'].join(", ")}\nVolontari: ${interventiInCorso[i]['volontari_impegnati'].join(", ")}"),
                   leading: const Icon(Icons.radio, color: Colors.green),
                   trailing: IconButton(
                     icon: const Icon(Icons.close, color: Colors.red),
@@ -2294,7 +2294,14 @@ class _IoSonoVState extends State<IoSonoV> {
                 const Text("Volontari:"),
                 Wrap(children: volDisp.map((v) => FilterChip(label: Text(v['nome']), selected: volSel.contains(v['nome']), onSelected: (s) => setD(() => s ? volSel.add(v['nome']) : volSel.remove(v['nome'])))).toList()),
                 TextField(onChanged: (v) => loc = v, decoration: const InputDecoration(labelText: "Località")),
-                TextField(onChanged: (v) => descrizione = v, maxLines: 3, decoration: const InputDecoration(labelText: "Descrizione")),
+                TextField(
+                  onChanged: (v) => descrizione = v, 
+                  maxLines: 3, 
+                  decoration: const InputDecoration(
+                    labelText: "Descrizione",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
                 TextField(onChanged: (v) => segnalatoDa = v, decoration: const InputDecoration(labelText: "Segnalato da")),
                 TextButton.icon(onPressed: () => _scattaFoto(nuovo, setD), icon: const Icon(Icons.camera_alt), label: const Text("FOTO")),
               ],
