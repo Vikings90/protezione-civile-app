@@ -2738,11 +2738,32 @@ class _IoSonoVState extends State<IoSonoV> {
   }
 
   void _dialogDettaglioIntervento(Map<String, dynamic> inter, VoidCallback refresh) {
+    final mezziList = inter['mezzi'] is List ? (inter['mezzi'] as List).join(", ") : 'Nessuno';
+    final volList = inter['volontari_impegnati'] is List ? (inter['volontari_impegnati'] as List).join(", ") : 'Nessuno';
+    
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
         title: Text(inter['titolo']),
-        content: Text("Mezzi: ${inter['mezzi'].join(", ")}\nInizio: ${inter['inizio']}\nFine: ${inter['fine'] ?? 'Operativo'}"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Descrizione: ${inter['descrizione'] ?? 'N/A'}"),
+              const SizedBox(height: 8),
+              Text("Segnalato da: ${inter['segnalato_da'] ?? 'N/A'}"),
+              const SizedBox(height: 8),
+              Text("Inizio: ${inter['inizio'] ?? 'N/A'}"),
+              const SizedBox(height: 8),
+              Text("Fine: ${inter['fine'] ?? 'In corso'}"),
+              const SizedBox(height: 8),
+              Text("Mezzi: $mezziList"),
+              const SizedBox(height: 8),
+              Text("Volontari: $volList"),
+            ],
+          ),
+        ),
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -2773,37 +2794,76 @@ class _IoSonoVState extends State<IoSonoV> {
 
   void _dialogModificaRapportino(Map<String, dynamic> inter, VoidCallback refresh) {
     String nuovoTitolo = inter['titolo'];
+    String descrizione = inter['descrizione'] ?? '';
+    String segnalatoDa = inter['segnalato_da'] ?? '';
+    String inizio = inter['inizio'] ?? '';
     String vImpiegati = inter['volontari_impegnati'].isEmpty
         ? "Nessun volontario assegnato"
         : inter['volontari_impegnati'].join(", ");
+    String mezziList = inter['mezzi'].isEmpty
+        ? "Nessun mezzo assegnato"
+        : inter['mezzi'].join(", ");
 
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text("Modifica Rapportino"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: TextEditingController(text: nuovoTitolo),
-              onChanged: (v) => nuovoTitolo = v,
-              decoration: const InputDecoration(labelText: "Dettaglio Intervento"),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Volontari Impiegati:",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey),
-            ),
-            const SizedBox(height: 5),
-            Text(vImpiegati, style: const TextStyle(fontSize: 14, color: Colors.black87)),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: TextEditingController(text: nuovoTitolo)..selection = TextSelection.collapsed(offset: nuovoTitolo.length),
+                onChanged: (v) => nuovoTitolo = v,
+                decoration: const InputDecoration(labelText: "Dettaglio Intervento"),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: TextEditingController(text: descrizione)..selection = TextSelection.collapsed(offset: descrizione.length),
+                onChanged: (v) => descrizione = v,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: "Descrizione"),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: TextEditingController(text: segnalatoDa)..selection = TextSelection.collapsed(offset: segnalatoDa.length),
+                onChanged: (v) => segnalatoDa = v,
+                decoration: const InputDecoration(labelText: "Segnalato da"),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: TextEditingController(text: inizio)..selection = TextSelection.collapsed(offset: inizio.length),
+                onChanged: (v) => inizio = v,
+                decoration: const InputDecoration(labelText: "Orario Inizio"),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Mezzi:",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey),
+              ),
+              const SizedBox(height: 5),
+              Text(mezziList, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              const SizedBox(height: 20),
+              const Text(
+                "Volontari Impiegati:",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey),
+              ),
+              const SizedBox(height: 5),
+              Text(vImpiegati, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
           ElevatedButton(
             onPressed: () {
-              setState(() => inter['titolo'] = nuovoTitolo);
+              setState(() {
+                inter['titolo'] = nuovoTitolo;
+                inter['descrizione'] = descrizione;
+                inter['segnalato_da'] = segnalatoDa;
+                inter['inizio'] = inizio;
+              });
               refresh();
               Navigator.pop(c);
             },
