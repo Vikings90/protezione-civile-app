@@ -462,6 +462,7 @@ class SupabaseService {
       'org_id': orgId,
       'descrizione': articolo['descrizione'],
       'quantita': articolo['quantita'] ?? 0,
+      'categoria': articolo['categoria'] ?? 'elettricità',
     };
 
     if (articolo['id'] != null) {
