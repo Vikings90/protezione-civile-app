@@ -1154,12 +1154,13 @@ class _IoSonoVState extends State<IoSonoV> {
     );
   }
 
-  void _scattaFotoSegnalazione(VoidCallback setD, Function(String) onFoto) {
+  void _scattaFotoSegnalazione(StateSetter setD, Function(String) onFoto) {
     _picker.pickImage(source: ImageSource.camera).then((file) {
       if (file != null) {
         file.readAsBytes().then((bytes) {
           final base64 = base64Encode(bytes);
-          setD(() => onFoto(base64));
+          onFoto(base64);
+          setD(() {});
         });
       }
     });
@@ -2499,10 +2500,10 @@ class _IoSonoVState extends State<IoSonoV> {
                                 onPressed: () => _dialogModificaSegnalazione(i, () => setState(() {})),
                               ),
                             ),
-                            if (segnalazioni[i]['foto'] != null && segnalazioni[i]['foto'].isNotEmpty)
+                            if (segnalazioni[i]['foto'] != null && (segnalazioni[i]['foto'] as String).isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.all(8.0),
-                                child: Image.memory(base64Decode(segnalazioni[i]['foto'])),
+                                child: Image.memory(base64Decode(segnalazioni[i]['foto'] as String)),
                               ),
                           ],
                         ),
