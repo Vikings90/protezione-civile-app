@@ -2551,6 +2551,7 @@ class _IoSonoVState extends State<IoSonoV> {
       final segnalatoDa = inter['segnalato_da'] ?? 'N/A';
       final inizio = inter['inizio'] ?? 'N/A';
       final fine = inter['fine'] ?? 'In corso';
+      final foto = inter['foto'];
       
       rtf += r"""""" + index.toString() + r""". """ + titolo + r"""\par
    Descrizione: """ + descrizione + r"""\par
@@ -2559,7 +2560,22 @@ class _IoSonoVState extends State<IoSonoV> {
    Fine: """ + fine + r"""\par
    Mezzi: """ + mezziList + r"""\par
    Volontari: """ + volList + r"""\par
-\par
+""";
+
+      // Aggiunge foto se presente
+      if (foto != null && foto.isNotEmpty) {
+        try {
+          final imageBytes = base64Decode(foto as String);
+          final hexImage = imageBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+          rtf += r"""{\pict\pngblip\picw""" + imageBytes.length.toString() + r"""\pich""" + imageBytes.length.toString() + r""" """ + hexImage + r"""}\par
+""";
+        } catch (e) {
+          rtf += r"""   [Foto non disponibile]\par
+""";
+        }
+      }
+
+      rtf += r"""\par
 """;
       index++;
     }
