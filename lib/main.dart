@@ -1108,32 +1108,120 @@ class _IoSonoVState extends State<IoSonoV> {
   void _dialogNuovaSegnalazione(VoidCallback onSave) {
     String oggetto = "";
     String descrizione = "";
+    String foto = "";
     showDialog(
       context: context,
-      builder: (c) => AlertDialog(
-        title: const Text("Nuova Segnalazione"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(onChanged: (v) => oggetto = v, decoration: const InputDecoration(labelText: "Oggetto")),
-            const SizedBox(height: 10),
-            TextField(onChanged: (v) => descrizione = v, maxLines: 3, decoration: const InputDecoration(labelText: "Descrizione")),
+      builder: (c) => StatefulBuilder(
+        builder: (context, setD) => AlertDialog(
+          title: const Text("Nuova Segnalazione"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(onChanged: (v) => oggetto = v, decoration: const InputDecoration(labelText: "Oggetto")),
+                const SizedBox(height: 10),
+                TextField(onChanged: (v) => descrizione = v, maxLines: 3, decoration: const InputDecoration(labelText: "Descrizione")),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () => _scattaFotoSegnalazione(setD, (f) => foto = f),
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("FOTO"),
+                ),
+                if (foto.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.memory(base64Decode(foto)),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[700], foregroundColor: Colors.white),
+              onPressed: () {
+                if (oggetto.isNotEmpty || descrizione.isNotEmpty) {
+                  setState(() => segnalazioni.add({"oggetto": oggetto, "descrizione": descrizione, "foto": foto}));
+                  onSave();
+                }
+                Navigator.pop(c);
+              },
+              child: const Text("INVIA"),
+            )
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[700], foregroundColor: Colors.white),
-            onPressed: () {
-              if (oggetto.isNotEmpty || descrizione.isNotEmpty) {
-                setState(() => segnalazioni.add({"oggetto": oggetto, "descrizione": descrizione}));
+      ),
+    );
+  }
+
+  void _scattaFotoSegnalazione(VoidCallback setD, Function(String) onFoto) {
+    _picker.pickImage(source: ImageSource.camera).then((file) {
+      if (file != null) {
+        file.readAsBytes().then((bytes) {
+          final base64 = base64Encode(bytes);
+          setD(() => onFoto(base64));
+        });
+      }
+    });
+  }
+
+  void _dialogModificaSegnalazione(int index, VoidCallback onSave) {
+    String oggetto = segnalazioni[index]['oggetto'] ?? "";
+    String descrizione = segnalazioni[index]['descrizione'] ?? "";
+    String foto = segnalazioni[index]['foto'] ?? "";
+    
+    showDialog(
+      context: context,
+      builder: (c) => StatefulBuilder(
+        builder: (context, setD) => AlertDialog(
+          title: const Text("Modifica Segnalazione"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: TextEditingController(text: oggetto)..selection = TextSelection.collapsed(offset: oggetto.length),
+                  onChanged: (v) => oggetto = v,
+                  decoration: const InputDecoration(labelText: "Oggetto"),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: TextEditingController(text: descrizione)..selection = TextSelection.collapsed(offset: descrizione.length),
+                  onChanged: (v) => descrizione = v,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: "Descrizione"),
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: () => _scattaFotoSegnalazione(setD, (f) => foto = f),
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("CAMBIA FOTO"),
+                ),
+                if (foto.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.memory(base64Decode(foto)),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c), child: const Text("ANNULLA")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple[700], foregroundColor: Colors.white),
+              onPressed: () {
+                setState(() {
+                  segnalazioni[index]['oggetto'] = oggetto;
+                  segnalazioni[index]['descrizione'] = descrizione;
+                  segnalazioni[index]['foto'] = foto;
+                });
                 onSave();
-              }
-              Navigator.pop(c);
-            },
-            child: const Text("INVIA"),
-          )
-        ],
+                Navigator.pop(c);
+              },
+              child: const Text("SALVA"),
+            )
+          ],
+        ),
       ),
     );
   }
@@ -2394,13 +2482,29 @@ class _IoSonoVState extends State<IoSonoV> {
                   ),
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
-                      (context, i) => ListTile(
-                        title: Text(segnalazioni[i]['oggetto'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(segnalazioni[i]['descrizione'] ?? ""),
-                        leading: Checkbox(
-                          value: listaSegnalazioniSelezionate.contains(i),
-                          activeColor: Colors.purple,
-                          onChanged: (v) => setState(() => v! ? listaSegnalazioniSelezionate.add(i) : listaSegnalazioniSelezionate.remove(i)),
+                      (context, i) => Card(
+                        margin: const EdgeInsets.all(8),
+                        child: Column(
+                          children: [
+                            ListTile(
+                              title: Text(segnalazioni[i]['oggetto'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold)),
+                              subtitle: Text(segnalazioni[i]['descrizione'] ?? ""),
+                              leading: Checkbox(
+                                value: listaSegnalazioniSelezionate.contains(i),
+                                activeColor: Colors.purple,
+                                onChanged: (v) => setState(() => v! ? listaSegnalazioniSelezionate.add(i) : listaSegnalazioniSelezionate.remove(i)),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.grey),
+                                onPressed: () => _dialogModificaSegnalazione(i, () => setState(() {})),
+                              ),
+                            ),
+                            if (segnalazioni[i]['foto'] != null && segnalazioni[i]['foto'].isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Image.memory(base64Decode(segnalazioni[i]['foto'])),
+                              ),
+                          ],
                         ),
                       ),
                       childCount: segnalazioni.length,
