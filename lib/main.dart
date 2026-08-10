@@ -2777,6 +2777,20 @@ class _IoSonoVState extends State<IoSonoV> {
               Text("Mezzi: $mezziList"),
               const SizedBox(height: 8),
               Text("Volontari: $volList"),
+              const SizedBox(height: 8),
+              if (inter['foto'] != null && (inter['foto'] as String).isNotEmpty)
+                Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(base64Decode(inter['foto'] as String), fit: BoxFit.cover),
+                  ),
+                ),
             ],
           ),
         ),
@@ -2877,6 +2891,30 @@ class _IoSonoVState extends State<IoSonoV> {
               ),
               const SizedBox(height: 5),
               Text(vImpiegati, style: const TextStyle(fontSize: 14, color: Colors.black87)),
+              const SizedBox(height: 20),
+              if (inter['foto'] != null && (inter['foto'] as String).isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Foto:",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(base64Decode(inter['foto'] as String), fit: BoxFit.cover),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
