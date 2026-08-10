@@ -2791,13 +2791,23 @@ class _IoSonoVState extends State<IoSonoV> {
           ),
           if (inter['fine'] == null)
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   inter['fine'] = "${DateTime.now().hour}:${DateTime.now().minute}";
                   inter['stato'] = "archiviato";
                   for (var m in inter['mezzi']) mezzo.firstWhere((e) => e['nome'] == m)['stato'] = "Disponibile";
                   for (var v in inter['volontari_impegnati']) volontari.firstWhere((e) => e['nome'] == v)['stato'] = "Disponibile";
                 });
+                
+                // Salva su Supabase
+                if (_usaCloud && _sessionOrgId != null) {
+                  try {
+                    await _db.salvaIntervento(inter, _sessionOrgId!);
+                  } catch (e) {
+                    _snack("Errore salvataggio: $e");
+                  }
+                }
+                
                 refresh();
                 Navigator.pop(c);
               },
@@ -2949,7 +2959,11 @@ class _IoSonoVState extends State<IoSonoV> {
 
   Future<void> _scattaFoto(Map<String, dynamic> item, StateSetter setD) async {
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-    if (photo != null) setD(() => item['foto'] = photo.path);
+    if (photo != null) {
+      final bytes = await photo.readAsBytes();
+      final base64 = base64Encode(bytes);
+      setD(() => item['foto'] = base64);
+    }
   }
 
   Widget _buildRegistrazioneVolontario() {
