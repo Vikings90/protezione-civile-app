@@ -2519,8 +2519,14 @@ class _IoSonoVState extends State<IoSonoV> {
 
   void _generaRapportinoIntervento() {
     var interventiArchiviati = interventi.where((i) => i['stato'] == "archiviato").toList();
+    
+    // Filtra solo gli interventi selezionati
+    if (selezionatiInterventi.isNotEmpty) {
+      interventiArchiviati = selezionatiInterventi.map((index) => interventiArchiviati[index]).toList();
+    }
+    
     if (interventiArchiviati.isEmpty) {
-      _snack("Nessun intervento archiviato per il rapportino");
+      _snack("Nessun intervento selezionato per il rapportino");
       return;
     }
 
